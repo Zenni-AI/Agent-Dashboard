@@ -1,0 +1,52 @@
+{
+  "$comment": [
+    "Reference operators LITIX benchmarks a channel against.",
+    "This file is a starting point, not a fixed truth. Handles change and channels drift;",
+    "edit it freely and point LITIX at your own copy with --references <path>.",
+    "Any handle that fails to resolve is skipped with a warning rather than failing the run.",
+    "'mechanic' is the specific, transferable thing the account proves — that is what gets benchmarked,",
+    "not the personality."
+  ],
+  "creators": [
+    {
+      "id": "southeast-softwash",
+      "name": "Southeast Softwash",
+      "handle": "SoutheastSoftwash",
+      "niche": "home-services",
+      "mechanic": "Documents real jobs and real pricing, then sells the systems and chemicals behind them to the people who want the same business.",
+      "monetization": ["training program", "physical product", "equipment supply"]
+    },
+    {
+      "id": "hormozi",
+      "name": "Alex Hormozi",
+      "handle": "AlexHormozi",
+      "niche": "business-operations",
+      "mechanic": "Gives away the complete tactical playbook for free and monetizes the tier above it — capital, not courses.",
+      "monetization": ["books", "portfolio equity", "brand"]
+    },
+    {
+      "id": "graham-stephan",
+      "name": "Graham Stephan",
+      "handle": "GrahamStephan",
+      "niche": "finance-investing",
+      "mechanic": "High-frequency long-form on money topics with fixed recurring formats, monetized through sponsors and an owned product.",
+      "monetization": ["sponsorships", "affiliate", "own product"]
+    },
+    {
+      "id": "colin-and-samir",
+      "name": "Colin and Samir",
+      "handle": "ColinandSamir",
+      "niche": "creator-education",
+      "mechanic": "Turns access to other creators into the product: interviews compound into a media brand with owned distribution.",
+      "monetization": ["sponsorships", "newsletter", "membership"]
+    },
+    {
+      "id": "fireship",
+      "name": "Fireship",
+      "handle": "Fireship",
+      "niche": "software-ai",
+      "mechanic": "Extreme information density in short runtimes, converting technical trust into course sales.",
+      "monetization": ["courses", "membership", "sponsorships"]
+    }
+  ]
+}

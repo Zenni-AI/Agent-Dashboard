@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0b0a10" />
+<meta name="description" content="Pull your phone out, dump the half-formed idea, get it back as something you could actually do." />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="High Thoughts" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="icon" href="/icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="/icon.svg" />
+<link rel="stylesheet" href="/styles.css" />
+<title>High Thoughts</title>
+</head>
+<body>
+
+<main id="app">
+
+  <!-- ── Catch ─────────────────────────────────────────────────────────── -->
+  <section class="screen" id="screen-catch" data-screen="catch">
+    <header class="masthead">
+      <h1>HIGH<span>THOUGHTS</span></h1>
+      <p class="tagline">Say it before it goes.</p>
+    </header>
+
+    <form id="catch-form" autocomplete="off">
+      <textarea
+        id="thought"
+        name="thought"
+        rows="4"
+        maxlength="4000"
+        enterkeyhint="go"
+        placeholder="what if…"
+        aria-label="Your thought"
+      ></textarea>
+
+      <div class="input-row">
+        <button type="button" id="mic" class="icon-btn" hidden aria-pressed="false" aria-label="Dictate">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Z"/><path d="M6 11v1a6 6 0 0 0 12 0v-1M12 19v3"/></svg>
+        </button>
+        <span class="counter" id="counter" aria-hidden="true"></span>
+      </div>
+
+      <fieldset class="modes" id="modes">
+        <legend class="sr-only">What should it do with the thought?</legend>
+      </fieldset>
+
+      <button type="submit" class="go" id="go">Catch it</button>
+    </form>
+
+    <p class="hint" id="hint"></p>
+  </section>
+
+  <!-- ── Result ────────────────────────────────────────────────────────── -->
+  <section class="screen" id="screen-result" data-screen="result" hidden>
+    <div class="result-top">
+      <button type="button" class="back" id="result-back" aria-label="Back">←</button>
+      <span class="mode-tag" id="result-mode"></span>
+      <button type="button" class="back" id="result-delete" aria-label="Delete this thought">✕</button>
+    </div>
+
+    <blockquote class="original" id="result-original"></blockquote>
+
+    <p class="ghost" id="ghost" hidden><span id="ghost-text"></span></p>
+
+    <article class="answer" id="answer" aria-live="polite"></article>
+
+    <div class="again" id="again" hidden>
+      <p class="again-label">Not done with it?</p>
+      <div class="again-row" id="again-row"></div>
+    </div>
+  </section>
+
+  <!-- ── Log ───────────────────────────────────────────────────────────── -->
+  <section class="screen" id="screen-log" data-screen="log" hidden>
+    <header class="masthead small">
+      <h1>The log</h1>
+      <p class="tagline" id="log-count"></p>
+    </header>
+    <ul class="log" id="log"></ul>
+    <p class="empty" id="log-empty" hidden>
+      Nothing yet.<br />Everything you catch is stored on this phone only — never sent anywhere but the model, never kept on the server.
+    </p>
+  </section>
+
+</main>
+
+<nav class="tabs" id="tabs">
+  <button type="button" data-goto="catch" class="active">Catch</button>
+  <button type="button" data-goto="log">Log</button>
+</nav>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>

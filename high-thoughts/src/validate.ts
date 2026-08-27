@@ -1,5 +1,6 @@
+import { BriefSchema, type Brief } from "./brief.js";
 import { isModeId, MODES } from "./modes.js";
-import type { DevelopRequest, Turn } from "./types.js";
+import type { DevelopRequest, MarkedLine, ThoughtChain, Turn } from "./types.js";
 
 export class ValidationError extends Error {
   constructor(message: string) {
@@ -68,4 +69,105 @@ function normaliseHistory(value: unknown, max: number): Turn[] {
 
   // Keep the most recent turns — the oldest are the ones already superseded.
   return turns.slice(-max);
+}
+
+export interface ChainOptions {
+  maxThoughtChars: number;
+  maxHistoryTurns: number;
+  /** Thoughts a single textbook may be built from. */
+  maxChains: number;
+}
+
+/**
+ * Validate the chains a brief is being requested for.
+ *
+ * The phone sends its own localStorage back to us, so this sees everything an
+ * older build wrote, a hand-edited entry, and the occasional 40-thought
+ * selection. Undeveloped chains are dropped rather than rejected: there is
+ * nothing to read in a thought that never got an answer.
+ */
+export function validateChainsRequest(body: unknown, options: ChainOptions): ThoughtChain[] {
+  if (typeof body !== "object" || body === null) {
+    throw new ValidationError("Expected a JSON object.");
+  }
+
+  const raw = (body as Record<string, unknown>).chains;
+  if (!Array.isArray(raw)) throw new ValidationError("No thoughts selected.");
+
+  const chains: ThoughtChain[] = [];
+
+  for (const entry of raw) {
+    if (typeof entry !== "object" || entry === null) continue;
+    const candidate = entry as Record<string, unknown>;
+    if (typeof candidate.thought !== "string") continue;
+
+    const thought = candidate.thought.trim().slice(0, options.maxThoughtChars);
+    if (thought.length === 0) continue;
+
+    const turns = normaliseTurns(candidate.turns, options.maxHistoryTurns);
+    if (turns.length === 0) continue;
+
+    chains.push({ thought, turns });
+    if (chains.length >= options.maxChains) break;
+  }
+
+  if (chains.length === 0) {
+    throw new ValidationError("Nothing to read yet — develop a thought first.");
+  }
+
+  return chains;
+}
+
+function normaliseTurns(value: unknown, max: number): Turn[] {
+  if (!Array.isArray(value)) return [];
+
+  const turns: Turn[] = [];
+  for (const entry of value) {
+    if (typeof entry !== "object" || entry === null) continue;
+    const candidate = entry as Record<string, unknown>;
+    if (typeof candidate.text !== "string") continue;
+
+    const text = candidate.text.trim();
+    if (text.length === 0) continue;
+
+    turns.push({
+      mode: isModeId(candidate.mode) ? candidate.mode : MODES.riff.id,
+      text,
+      marks: normaliseMarks(candidate.marks),
+    });
+  }
+
+  return turns.slice(-max);
+}
+
+function normaliseMarks(value: unknown): MarkedLine[] {
+  if (!Array.isArray(value)) return [];
+
+  const marks: MarkedLine[] = [];
+  for (const entry of value) {
+    if (typeof entry !== "object" || entry === null) continue;
+    const candidate = entry as Record<string, unknown>;
+    if (candidate.state !== "keep" && candidate.state !== "kill") continue;
+    if (typeof candidate.text !== "string" || candidate.text.trim().length === 0) continue;
+
+    marks.push({
+      index: Number.isInteger(candidate.index) ? (candidate.index as number) : marks.length,
+      state: candidate.state,
+      text: candidate.text.trim().slice(0, 600),
+    });
+  }
+
+  return marks;
+}
+
+/** The brief the phone hands back when the person confirms it. */
+export function validateBrief(body: unknown): Brief {
+  if (typeof body !== "object" || body === null) {
+    throw new ValidationError("Expected a JSON object.");
+  }
+
+  const parsed = BriefSchema.safeParse((body as Record<string, unknown>).brief);
+  if (!parsed.success) throw new ValidationError("That brief is not one we produced.");
+
+  return parsed.data;
 }

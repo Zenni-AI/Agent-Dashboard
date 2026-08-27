@@ -87,6 +87,88 @@ export function remove(id) {
   write(read().filter((thought) => thought.id !== id));
 }
 
+/**
+ * Mark one line of one answer as kept or killed.
+ *
+ * Marks live on the turn rather than the thought because a line's index only
+ * means anything against the answer it came from. Setting a line to the state
+ * it already has clears it, which is what makes one tap able to cycle.
+ */
+export function setMark(id, turnIndex, index, state, text) {
+  const thoughts = read();
+  const thought = thoughts.find((candidate) => candidate.id === id);
+  const turn = thought?.turns?.[turnIndex];
+  if (!turn) return null;
+
+  const marks = (turn.marks ?? []).filter((mark) => mark.index !== index);
+  if (state) marks.push({ index, state, text });
+
+  turn.marks = marks.sort((a, b) => a.index - b.index);
+  write(thoughts);
+  return thought;
+}
+
+/** Marks for one turn as an index → state map, which is what the renderer wants. */
+export function markMap(turn) {
+  const map = {};
+  for (const mark of turn?.marks ?? []) map[mark.index] = mark.state;
+  return map;
+}
+
+/** The shape the server reads: a thought plus its answers and marks. */
+export function chainFor(thought) {
+  return {
+    thought: thought.thought,
+    turns: (thought.turns ?? []).map((turn) => ({
+      mode: turn.mode,
+      text: turn.text,
+      marks: turn.marks ?? [],
+    })),
+  };
+}
+
+/* ── Textbooks ──────────────────────────────────────────────────────────── */
+
+const BOOKS_KEY = "high-thoughts/books/v1";
+
+function readBooks() {
+  try {
+    const raw = localStorage.getItem(BOOKS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeBooks(books) {
+  try {
+    localStorage.setItem(BOOKS_KEY, JSON.stringify(books.slice(0, 60)));
+  } catch {
+    // Out of quota. The book is still on screen; it just will not be there
+    // tomorrow. Better than losing the screen you are reading.
+  }
+}
+
+export function listBooks() {
+  return readBooks().sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+}
+
+export function getBook(id) {
+  return readBooks().find((book) => book.id === id) ?? null;
+}
+
+/** Saved as soon as it starts, so a dropped connection never loses the book. */
+export function saveBook(book) {
+  const books = readBooks().filter((existing) => existing.id !== book.id);
+  writeBooks([book, ...books]);
+  return book;
+}
+
+export function removeBook(id) {
+  writeBooks(readBooks().filter((book) => book.id !== id));
+}
+
 /** The turns the server replays as context, trimmed to what it accepts. */
 export function historyFor(thought, max = 6) {
   return (thought.turns ?? []).slice(-max).map((turn) => ({ mode: turn.mode, text: turn.text }));

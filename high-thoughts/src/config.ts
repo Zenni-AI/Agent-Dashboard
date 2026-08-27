@@ -12,6 +12,8 @@ export interface Config {
   maxThoughtChars: number;
   /** Earlier turns replayed as context on a follow-up. */
   maxHistoryTurns: number;
+  /** Thoughts a single textbook may be built from. */
+  maxChains: number;
 }
 
 function int(name: string, fallback: number): number {
@@ -43,5 +45,6 @@ export function loadConfig(): Config {
     rateWindowMs: int("HIGH_THOUGHTS_RATE_WINDOW_MS", 60_000),
     maxThoughtChars: int("HIGH_THOUGHTS_MAX_CHARS", 4000),
     maxHistoryTurns: int("HIGH_THOUGHTS_MAX_HISTORY", 6),
+    maxChains: int("HIGH_THOUGHTS_MAX_CHAINS", 8),
   };
 }

@@ -56,6 +56,59 @@ describe("renderMarkdown", () => {
   });
 });
 
+describe("tables", () => {
+  it("renders a pipe table with a header row", () => {
+    const html = renderMarkdown("| A | B |\n| --- | --- |\n| 1 | 2 |");
+    expect(html).toContain("<th>A</th><th>B</th>");
+    expect(html).toContain("<td>1</td><td>2</td>");
+  });
+
+  it("wraps it so a wide table scrolls inside itself", () => {
+    expect(renderMarkdown("| A |\n| --- |\n| 1 |")).toMatch(/^<div class="scroll-x">/);
+  });
+
+  it("needs the separator row — a lone pipe line stays a paragraph", () => {
+    expect(renderMarkdown("| just a pipe line")).toBe("<p>| just a pipe line</p>");
+  });
+
+  it("resumes normal rendering after the table ends", () => {
+    const html = renderMarkdown("| A |\n| --- |\n| 1 |\n\nafter");
+    expect(html).toContain("<p>after</p>");
+  });
+
+  it("escapes cell content", () => {
+    const html = renderMarkdown("| A |\n| --- |\n| <script>x</script> |");
+    expect(html).toContain("&lt;script&gt;");
+    expect(html).not.toContain("<script>");
+  });
+});
+
+describe("marking", () => {
+  it("numbers paragraphs and list items in document order", () => {
+    const html = renderMarkdown("## H\n\npara\n\n- one\n- two", { markable: true });
+    expect(html).toContain('<p data-mark="0">');
+    expect(html).toContain('<li data-mark="1">');
+    expect(html).toContain('<li data-mark="2">');
+  });
+
+  it("applies stored mark states", () => {
+    const html = renderMarkdown("a\n\nb", { markable: true, marks: { 0: "keep", 1: "kill" } });
+    expect(html).toContain('class="mark-keep"');
+    expect(html).toContain('class="mark-kill"');
+  });
+
+  it("emits no mark attributes unless asked", () => {
+    expect(renderMarkdown("a\n\nb")).toBe("<p>a</p><p>b</p>");
+  });
+
+  it("does not number headings — only lines worth a decision", () => {
+    const html = renderMarkdown("# T\n\n## S\n\npara", { markable: true });
+    expect(html).toContain('<p data-mark="0">');
+    expect(html).not.toContain("<h1 data-mark");
+    expect(html).not.toContain("<h2 data-mark");
+  });
+});
+
 describe("extractTitle", () => {
   it("takes the leading h1", () => {
     expect(extractTitle("# Rent-Paying Clouds\n\n## The idea\nyes", "raw")).toBe(

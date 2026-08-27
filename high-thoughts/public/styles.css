@@ -488,3 +488,281 @@ textarea::placeholder { color: var(--ink-faint); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ── Marking ──────────────────────────────────────────────────────────────
+ *
+ * The person tells us what they actually decided by tapping lines as they
+ * read. Everything the textbook knows about their intent comes from here, so
+ * the states have to be unmistakable at a glance and survive being tapped by
+ * a thumb in the dark.
+ */
+
+.answer [data-mark] {
+  position: relative;
+  padding-left: 13px;
+  border-left: 2px solid transparent;
+  border-radius: 0 4px 4px 0;
+  transition: border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.answer [data-mark]:active { background: rgba(180, 140, 255, 0.07); }
+
+.answer .mark-keep {
+  border-left-color: var(--glow-2);
+  background: rgba(110, 231, 208, 0.07);
+}
+
+.answer .mark-kill {
+  border-left-color: var(--warn);
+  opacity: 0.42;
+  text-decoration: line-through;
+  text-decoration-color: rgba(255, 143, 107, 0.6);
+}
+
+.answer ol [data-mark], .answer ul [data-mark] { margin-left: -13px; }
+
+.mark-hint {
+  margin: 22px 2px 0;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+/* ── The textbook call to action ──────────────────────────────────────── */
+
+.book-cta {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+  padding: 15px 16px;
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background:
+    linear-gradient(var(--bg-raised), var(--bg-raised)) padding-box,
+    linear-gradient(92deg, var(--glow), var(--glow-2)) border-box;
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.book-cta strong {
+  display: block;
+  font-size: 15.5px;
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+
+.book-cta span {
+  display: block;
+  font-size: 12.5px;
+  color: var(--ink-dim);
+  line-height: 1.4;
+}
+
+.book-cta:disabled { opacity: 0.45; }
+
+/* ── Brief ────────────────────────────────────────────────────────────── */
+
+.brief-title {
+  margin: 0 0 10px;
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.brief-building {
+  margin: 0 0 26px;
+  font-size: 16.5px;
+  color: var(--ink-dim);
+}
+
+.brief-group { margin-bottom: 22px; }
+
+.brief-group h2 {
+  margin: 0 0 9px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--glow-2);
+}
+
+.brief-group.ruled h2 { color: var(--warn); }
+.brief-group.open h2 { color: var(--ink-faint); }
+
+.brief-group ul { margin: 0; padding: 0; list-style: none; }
+
+.brief-group li {
+  position: relative;
+  margin-bottom: 7px;
+  padding-left: 17px;
+  font-size: 15px;
+}
+
+.brief-group li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--glow-2);
+}
+
+.brief-group.ruled li::before { background: var(--warn); }
+.brief-group.open li::before { background: var(--ink-faint); }
+.brief-group.ruled li { color: var(--ink-dim); }
+
+.brief-check {
+  margin: 30px 0 14px;
+  font-size: 15px;
+  color: var(--ink-dim);
+}
+
+.brief-actions { display: grid; gap: 10px; }
+
+.brief-fix {
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.brief-split {
+  margin: 0 0 22px;
+  padding: 13px 15px;
+  border: 1px solid var(--warn);
+  border-radius: var(--radius);
+  background: rgba(255, 143, 107, 0.08);
+  font-size: 14px;
+  color: var(--ink);
+}
+
+/* ── Writing / the book ───────────────────────────────────────────────── */
+
+.writing { margin: 26px 0; }
+
+.writing-line {
+  margin: 0 0 7px;
+  font-size: 19px;
+  font-weight: 650;
+}
+
+.writing-sub {
+  margin: 0 0 20px;
+  font-size: 13.5px;
+  color: var(--ink-faint);
+  line-height: 1.55;
+}
+
+.reading-list {
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reading-list li {
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--ink-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reading-list li::before { content: "read  "; color: var(--ink-faint); }
+
+.answer.book h1 { margin-bottom: 26px; }
+
+.answer.book h2 {
+  margin-top: 34px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.answer.book table {
+  width: 100%;
+  margin: 0 0 16px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.answer.book th, .answer.book td {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  text-align: left;
+}
+
+.answer.book th { color: var(--glow-2); font-weight: 650; }
+
+.answer .cite {
+  padding: 0 1px;
+  color: var(--glow);
+  font-size: 0.72em;
+  font-weight: 700;
+}
+
+.answer a { color: var(--glow-2); word-break: break-all; }
+
+/* ── Log tools ────────────────────────────────────────────────────────── */
+
+.log-tools { display: flex; gap: 8px; margin-bottom: 16px; }
+
+.chip {
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-raised);
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.chip.primary {
+  border-color: transparent;
+  background: linear-gradient(92deg, var(--glow), var(--glow-2));
+  color: #14121c;
+  font-weight: 650;
+}
+
+.chip:disabled { opacity: 0.4; }
+
+.log li button.selected {
+  border-color: var(--glow);
+  background: linear-gradient(180deg, rgba(180, 140, 255, 0.15), rgba(180, 140, 255, 0.05));
+}
+
+.log .tick {
+  float: right;
+  margin-left: 10px;
+  color: var(--glow);
+  font-size: 15px;
+}
+
+.section-head {
+  margin: 34px 0 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--glow-2);
+}
+
+/* A wide table must scroll inside itself — the page body never scrolls sideways. */
+.scroll-x {
+  overflow-x: auto;
+  margin-bottom: 16px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scroll-x table { margin-bottom: 0; }

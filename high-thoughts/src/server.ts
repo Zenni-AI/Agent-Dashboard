@@ -4,12 +4,20 @@ import { stat } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { developThought } from "./claude.js";
+import { readTheLog } from "./brief.js";
+import { describeFailure, developThought } from "./claude.js";
 import { loadConfig, MissingKeyError, type Config } from "./config.js";
+import { JobStore, newJobId } from "./jobs.js";
 import { publicModes, resolveMode } from "./modes.js";
 import { RateLimiter } from "./ratelimit.js";
 import { closeStream, openStream, sendEvent } from "./sse.js";
-import { validateDevelopRequest, ValidationError } from "./validate.js";
+import { CHAPTERS, writeTextbook } from "./textbook.js";
+import {
+  validateBrief,
+  validateChainsRequest,
+  validateDevelopRequest,
+  ValidationError,
+} from "./validate.js";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 /** Works from both `src/` under tsx and `dist/` after a build. */
@@ -29,9 +37,10 @@ const MIME: Record<string, string> = {
 function start(config: Config): void {
   const client = new Anthropic({ apiKey: config.apiKey });
   const limiter = new RateLimiter(config.rateLimit, config.rateWindowMs);
+  const jobs = new JobStore();
 
   const server = createServer((req, res) => {
-    handle(req, res, config, client, limiter).catch((error) => {
+    handle(req, res, config, client, limiter, jobs).catch((error) => {
       console.error("unhandled request failure:", error);
       if (!res.headersSent) sendJson(res, 500, { error: "Something broke." });
       closeStream(res);
@@ -55,6 +64,7 @@ async function handle(
   config: Config,
   client: Anthropic,
   limiter: RateLimiter,
+  jobs: JobStore,
 ): Promise<void> {
   const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
 
@@ -66,7 +76,28 @@ async function handle(
   }
 
   if (url.pathname === "/api/modes") {
-    return sendJson(res, 200, { modes: publicModes() });
+    return sendJson(res, 200, { modes: publicModes(), chapters: CHAPTERS });
+  }
+
+  // Read the log and report where the idea stands. Cheap, and it runs before
+  // the person has committed to anything — its whole job is to be checked.
+  if (url.pathname === "/api/brief") {
+    if (req.method !== "POST") return sendJson(res, 405, { error: "POST only." });
+    return brief(req, res, config, client, limiter);
+  }
+
+  // Start writing a textbook. Returns a job id; the work continues whether or
+  // not anyone is still listening.
+  if (url.pathname === "/api/textbook") {
+    if (req.method !== "POST") return sendJson(res, 405, { error: "POST only." });
+    return startTextbook(req, res, config, client, limiter, jobs);
+  }
+
+  // Attach to a running or finished textbook. Replays from the start, so a
+  // phone that locked mid-generation loses nothing by coming back.
+  if (url.pathname.startsWith("/api/textbook/")) {
+    const id = url.pathname.slice("/api/textbook/".length);
+    return streamJob(res, jobs, id);
   }
 
   if (url.pathname === "/api/develop") {
@@ -139,6 +170,98 @@ async function develop(
     sendEvent(res, event);
   }
 
+  closeStream(res);
+}
+
+async function brief(
+  req: IncomingMessage,
+  res: ServerResponse,
+  config: Config,
+  client: Anthropic,
+  limiter: RateLimiter,
+): Promise<void> {
+  const limit = limiter.check(clientKey(req));
+  if (!limit.allowed) {
+    res.setHeader("Retry-After", String(limit.retryAfter));
+    return sendJson(res, 429, { error: `Slow down — ${limit.retryAfter}s.` });
+  }
+
+  let chains;
+  try {
+    const payload = await readJson(req, config.maxThoughtChars * 8 * config.maxChains);
+    chains = validateChainsRequest(payload, {
+      maxThoughtChars: config.maxThoughtChars,
+      maxHistoryTurns: config.maxHistoryTurns,
+      maxChains: config.maxChains,
+    });
+  } catch (error) {
+    if (error instanceof ValidationError) return sendJson(res, 400, { error: error.message });
+    return sendJson(res, 400, { error: (error as Error).message });
+  }
+
+  const abort = new AbortController();
+  res.on("close", () => abort.abort());
+
+  try {
+    const result = await readTheLog({
+      client,
+      model: config.model,
+      chains,
+      signal: abort.signal,
+    });
+    if (res.writableEnded) return;
+    return sendJson(res, 200, { brief: result });
+  } catch (error) {
+    if (res.writableEnded) return;
+    const { message } = describeFailure(error);
+    return sendJson(res, 502, { error: message });
+  }
+}
+
+async function startTextbook(
+  req: IncomingMessage,
+  res: ServerResponse,
+  config: Config,
+  client: Anthropic,
+  limiter: RateLimiter,
+  jobs: JobStore,
+): Promise<void> {
+  const limit = limiter.check(clientKey(req));
+  if (!limit.allowed) {
+    res.setHeader("Retry-After", String(limit.retryAfter));
+    return sendJson(res, 429, { error: `Slow down — ${limit.retryAfter}s.` });
+  }
+
+  let confirmed;
+  try {
+    const payload = await readJson(req, 64_000);
+    confirmed = validateBrief(payload);
+  } catch (error) {
+    if (error instanceof ValidationError) return sendJson(res, 400, { error: error.message });
+    return sendJson(res, 400, { error: (error as Error).message });
+  }
+
+  // Deliberately not tied to this request's lifetime: the person is expected
+  // to put the phone down while it writes.
+  const id = newJobId();
+  jobs.start(id, () => writeTextbook({ client, model: config.model, brief: confirmed }));
+
+  return sendJson(res, 202, { id });
+}
+
+async function streamJob(res: ServerResponse, jobs: JobStore, id: string): Promise<void> {
+  if (!jobs.get(id)) {
+    return sendJson(res, 404, { error: "That book has expired. Make it again." });
+  }
+
+  const abort = new AbortController();
+  res.on("close", () => abort.abort());
+
+  openStream(res);
+  for await (const event of jobs.subscribe(id, abort.signal)) {
+    if (res.writableEnded) break;
+    sendEvent(res, event);
+  }
   closeStream(res);
 }
 

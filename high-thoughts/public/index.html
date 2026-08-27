@@ -67,10 +67,60 @@
 
     <article class="answer" id="answer" aria-live="polite"></article>
 
+    <p class="mark-hint" id="mark-hint" hidden>Tap a line to keep it. Tap again to kill it.</p>
+
     <div class="again" id="again" hidden>
       <p class="again-label">Not done with it?</p>
       <div class="again-row" id="again-row"></div>
+
+      <button type="button" class="book-cta" id="make-book">
+        <strong>Make the textbook</strong>
+        <span>Everything you've decided, researched and cited. Yours to keep.</span>
+      </button>
     </div>
+  </section>
+
+  <!-- ── Brief: what we think you're building ──────────────────────────── -->
+  <section class="screen" id="screen-brief" data-screen="brief" hidden>
+    <div class="result-top">
+      <button type="button" class="back" id="brief-back" aria-label="Back">←</button>
+      <span class="mode-tag">Before we write it</span>
+    </div>
+
+    <p class="ghost" id="brief-ghost" hidden><span>reading everything you said</span></p>
+
+    <div id="brief-body" hidden>
+      <h1 class="brief-title" id="brief-title"></h1>
+      <p class="brief-building" id="brief-building"></p>
+
+      <div class="brief-lists" id="brief-lists"></div>
+
+      <p class="brief-check">Is that right?</p>
+      <div class="brief-actions">
+        <button type="button" class="go" id="brief-go">That's it — write it</button>
+        <button type="button" class="brief-fix" id="brief-fix">Not quite — go back and change it</button>
+      </div>
+    </div>
+
+    <p class="hint" id="brief-error"></p>
+  </section>
+
+  <!-- ── The textbook ──────────────────────────────────────────────────── -->
+  <section class="screen" id="screen-book" data-screen="book" hidden>
+    <div class="result-top">
+      <button type="button" class="back" id="book-back" aria-label="Back">←</button>
+      <span class="mode-tag" id="book-tag">Textbook</span>
+      <button type="button" class="back" id="book-delete" aria-label="Delete this textbook">✕</button>
+    </div>
+
+    <div class="writing" id="writing" hidden>
+      <p class="writing-line">Writing your book.</p>
+      <p class="writing-sub">It takes a few minutes. You can lock your phone — come back and it'll be here.</p>
+      <p class="ghost" id="book-ghost"><span id="book-ghost-text"></span></p>
+      <ul class="reading-list" id="reading-list"></ul>
+    </div>
+
+    <article class="answer book" id="book-body" aria-live="polite"></article>
   </section>
 
   <!-- ── Log ───────────────────────────────────────────────────────────── -->
@@ -79,7 +129,19 @@
       <h1>The log</h1>
       <p class="tagline" id="log-count"></p>
     </header>
+
+    <div class="log-tools">
+      <button type="button" class="chip" id="select-toggle">Select</button>
+      <button type="button" class="chip primary" id="select-book" hidden>Make a textbook</button>
+      <button type="button" class="chip" id="select-cancel" hidden>Cancel</button>
+    </div>
+
     <ul class="log" id="log"></ul>
+
+    <div id="books-section" hidden>
+      <h2 class="section-head">Your textbooks</h2>
+      <ul class="log books" id="books"></ul>
+    </div>
     <p class="empty" id="log-empty" hidden>
       Nothing yet.<br />Everything you catch is stored on this phone only — never sent anywhere but the model, never kept on the server.
     </p>

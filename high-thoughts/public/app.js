@@ -25,6 +25,30 @@ const el = {
   log: $("log"),
   logEmpty: $("log-empty"),
   logCount: $("log-count"),
+  markHint: $("mark-hint"),
+  makeBook: $("make-book"),
+  briefBack: $("brief-back"),
+  briefGhost: $("brief-ghost"),
+  briefBody: $("brief-body"),
+  briefTitle: $("brief-title"),
+  briefBuilding: $("brief-building"),
+  briefLists: $("brief-lists"),
+  briefGo: $("brief-go"),
+  briefFix: $("brief-fix"),
+  briefError: $("brief-error"),
+  bookBack: $("book-back"),
+  bookDelete: $("book-delete"),
+  bookTag: $("book-tag"),
+  writing: $("writing"),
+  bookGhost: $("book-ghost"),
+  bookGhostText: $("book-ghost-text"),
+  readingList: $("reading-list"),
+  bookBody: $("book-body"),
+  selectToggle: $("select-toggle"),
+  selectBook: $("select-book"),
+  selectCancel: $("select-cancel"),
+  books: $("books"),
+  booksSection: $("books-section"),
 };
 
 const MODE_KEY = "high-thoughts/mode";
@@ -45,6 +69,15 @@ const state = {
   current: null,
   /** Aborts the in-flight development when the user leaves or stops. */
   abort: null,
+  /** Index of the turn currently on screen, so a tap knows what it is marking. */
+  turnIndex: -1,
+  /** The confirmed brief awaiting a textbook, and the book being read. */
+  brief: null,
+  briefChains: [],
+  book: null,
+  /** Log multi-select. */
+  selecting: false,
+  selected: new Set(),
 };
 
 /* ── Screens ────────────────────────────────────────────────────────────── */
@@ -235,6 +268,8 @@ function openThought(thought, { develop = null } = {}) {
   el.ghost.hidden = true;
   el.ghostText.textContent = "";
   el.again.hidden = true;
+  el.markHint.hidden = true;
+  state.turnIndex = -1;
   show("result");
 
   if (develop) {
@@ -246,8 +281,13 @@ function openThought(thought, { develop = null } = {}) {
   const turns = thought.turns ?? [];
   const last = turns[turns.length - 1];
   if (last) {
+    state.turnIndex = turns.length - 1;
     el.resultMode.textContent = modeLabel(last.mode);
-    el.answer.innerHTML = renderMarkdown(last.text);
+    el.answer.innerHTML = renderMarkdown(last.text, {
+      markable: true,
+      marks: store.markMap(last),
+    });
+    el.markHint.hidden = false;
     renderAgain();
   } else {
     el.resultMode.textContent = "Not developed";
@@ -298,6 +338,57 @@ el.resultDelete.addEventListener("click", () => {
   state.current = null;
   show("log");
 });
+
+/* ── Marking ────────────────────────────────────────────────────────────── */
+
+/**
+ * Tap a line to cycle it: neutral → keep → kill → neutral.
+ *
+ * Cycling on one tap rather than a long-press or a swipe, because both of
+ * those fight the scroll gesture on a phone and this has to work half asleep.
+ * The tap is only counted if the finger did not travel, so scrolling past a
+ * paragraph never marks it.
+ */
+const NEXT_STATE = { keep: "kill", kill: null };
+
+let touchOrigin = null;
+
+el.answer.addEventListener(
+  "touchstart",
+  (event) => {
+    const touch = event.touches[0];
+    touchOrigin = touch ? { x: touch.clientX, y: touch.clientY } : null;
+  },
+  { passive: true },
+);
+
+el.answer.addEventListener("click", (event) => {
+  const line = event.target.closest("[data-mark]");
+  if (!line || !el.answer.contains(line)) return;
+
+  // A click that ended a scroll is not a tap.
+  if (touchOrigin && event.detail === 0) return;
+  touchOrigin = null;
+
+  toggleMark(Number(line.dataset.mark), line);
+});
+
+function toggleMark(index, line) {
+  const thought = state.current;
+  const turn = thought?.turns?.[state.turnIndex];
+  if (!turn || !Number.isInteger(index)) return;
+
+  const current = turn.marks?.find((mark) => mark.index === index)?.state;
+  // Not `?? "keep"` — NEXT_STATE.kill is deliberately null, and nullish
+  // coalescing would swallow it and make the third tap re-keep the line.
+  const next = Object.hasOwn(NEXT_STATE, current) ? NEXT_STATE[current] : "keep";
+
+  const updated = store.setMark(thought.id, state.turnIndex, index, next, line.textContent.trim());
+  if (updated) state.current = updated;
+
+  line.classList.remove("mark-keep", "mark-kill");
+  if (next) line.classList.add(`mark-${next}`);
+}
 
 /* ── Streaming ──────────────────────────────────────────────────────────── */
 
@@ -413,7 +504,6 @@ async function runDevelopment(modeId) {
 
 function finish(thought, modeId, answer) {
   el.ghost.hidden = true;
-  el.answer.innerHTML = renderMarkdown(answer);
 
   const updated = store.addTurn(thought.id, {
     mode: modeId,
@@ -422,7 +512,15 @@ function finish(thought, modeId, answer) {
     at: Date.now(),
   });
 
-  if (updated) state.current = updated;
+  if (updated) {
+    state.current = updated;
+    state.turnIndex = (updated.turns?.length ?? 1) - 1;
+  }
+
+  // Markable only now it is complete: indices shift while text is streaming,
+  // so a line marked mid-write would be the wrong line a second later.
+  el.answer.innerHTML = renderMarkdown(answer, { markable: true });
+  el.markHint.hidden = false;
   renderAgain();
 }
 
@@ -460,6 +558,273 @@ async function* readEvents(body, signal) {
   }
 }
 
+/* ── The brief ──────────────────────────────────────────────────────────── */
+
+el.makeBook.addEventListener("click", () => {
+  if (state.current) requestBrief([state.current]);
+});
+
+el.briefBack.addEventListener("click", () => history.back());
+el.briefFix.addEventListener("click", () => history.back());
+
+/**
+ * Read the selected chains and show the person what we understood.
+ *
+ * This screen exists to be checked. It is the last thing between them and a
+ * generation they are paying for, and the moment they find out whether the app
+ * was actually listening — so it shows the decisions as decisions, and a wrong
+ * read is one tap away from being corrected instead of baked into a book.
+ */
+async function requestBrief(thoughts) {
+  state.briefChains = thoughts;
+  state.brief = null;
+
+  el.briefBody.hidden = true;
+  el.briefError.textContent = "";
+  el.briefGhost.hidden = false;
+  show("brief");
+
+  try {
+    const response = await fetch("/api/brief", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chains: thoughts.map(store.chainFor) }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      el.briefGhost.hidden = true;
+      el.briefError.textContent = data.error ?? `The server said no (${response.status}).`;
+      return;
+    }
+
+    state.brief = data.brief;
+    renderBrief(data.brief);
+  } catch {
+    el.briefGhost.hidden = true;
+    el.briefError.textContent = navigator.onLine
+      ? "Could not reach the app. Try again."
+      : "You're offline. Try when you have signal.";
+  }
+}
+
+function renderBrief(brief) {
+  el.briefGhost.hidden = true;
+  el.briefTitle.textContent = brief.title || "Your idea";
+  el.briefBuilding.textContent = brief.building || "";
+
+  el.briefLists.replaceChildren();
+
+  // Unrelated thoughts make a bad single book. Say so rather than blending
+  // them into mush the person pays for and then does not recognise.
+  if (brief.looksLikeSeveral && brief.separateIdeas?.length > 1) {
+    const warning = document.createElement("p");
+    warning.className = "brief-split";
+    warning.textContent = `These look like ${brief.separateIdeas.length} different ideas — ${brief.separateIdeas.join(", ")}. One book will cover them all at once. Going back and picking one will get you a better book.`;
+    el.briefLists.append(warning);
+  }
+
+  const groups = [
+    ["Going with", brief.goingWith, ""],
+    ["Ruled out", brief.ruledOut, "ruled"],
+    ["Still open", brief.stillOpen, "open"],
+    ["You'd need to learn", brief.needToLearn, "open"],
+  ];
+
+  for (const [heading, items, variant] of groups) {
+    if (!items?.length) continue;
+
+    const group = document.createElement("div");
+    group.className = `brief-group ${variant}`.trim();
+
+    const title = document.createElement("h2");
+    title.textContent = heading;
+
+    const list = document.createElement("ul");
+    for (const item of items) {
+      const entry = document.createElement("li");
+      entry.textContent = item;
+      list.append(entry);
+    }
+
+    group.append(title, list);
+    el.briefLists.append(group);
+  }
+
+  el.briefBody.hidden = false;
+}
+
+/* ── The textbook ───────────────────────────────────────────────────────── */
+
+el.briefGo.addEventListener("click", () => {
+  if (state.brief) startTextbook(state.brief);
+});
+
+el.bookBack.addEventListener("click", () => history.back());
+
+el.bookDelete.addEventListener("click", () => {
+  if (!state.book || !confirm("Delete this textbook?")) return;
+  store.removeBook(state.book.id);
+  state.book = null;
+  show("log");
+});
+
+/**
+ * Ask the server to start writing, then follow the job.
+ *
+ * The book is saved locally the instant the job starts, so closing the app
+ * mid-write loses nothing — reopening it from the log re-attaches to the same
+ * job and picks the text up wherever it got to.
+ */
+async function startTextbook(brief) {
+  el.briefError.textContent = "";
+  el.briefGo.disabled = true;
+
+  try {
+    const response = await fetch("/api/textbook", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ brief }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.id) {
+      el.briefError.textContent = data.error ?? `The server said no (${response.status}).`;
+      return;
+    }
+
+    const book = store.saveBook({
+      id: data.id,
+      title: brief.title,
+      building: brief.building,
+      text: "",
+      sources: [],
+      status: "writing",
+      createdAt: Date.now(),
+    });
+
+    openBook(book, { follow: true });
+  } catch {
+    el.briefError.textContent = "Could not reach the app. Try again.";
+  } finally {
+    el.briefGo.disabled = false;
+  }
+}
+
+function openBook(book, { follow = false } = {}) {
+  state.book = book;
+
+  el.bookTag.textContent = book.status === "writing" ? "Writing" : "Textbook";
+  el.readingList.replaceChildren();
+  el.bookGhostText.textContent = "starting";
+  el.writing.hidden = !(follow || book.status === "writing");
+  el.bookBody.innerHTML = book.text ? renderMarkdown(book.text) : "";
+  show("book");
+
+  if (follow || book.status === "writing") followTextbook(book);
+}
+
+/** Attach to a job's stream. Replays from the start, so re-attaching is free. */
+async function followTextbook(book) {
+  stopStream();
+  const abort = new AbortController();
+  state.abort = abort;
+
+  let text = "";
+  const sources = [];
+  let frame = 0;
+
+  const paint = () => {
+    if (frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      el.bookBody.innerHTML = `${renderMarkdown(text)}<span class="caret"></span>`;
+    });
+  };
+
+  const settle = () => {
+    if (frame) cancelAnimationFrame(frame);
+    frame = 0;
+  };
+
+  const save = (status) => {
+    const saved = store.saveBook({ ...book, text, sources, status });
+    if (state.book?.id === book.id) state.book = saved;
+    return saved;
+  };
+
+  try {
+    const response = await fetch(`/api/textbook/${encodeURIComponent(book.id)}`, {
+      signal: abort.signal,
+    });
+
+    if (!response.ok || !response.body) {
+      settle();
+      el.writing.hidden = true;
+      el.bookBody.innerHTML = book.text
+        ? renderMarkdown(book.text)
+        : '<p class="failed">That book expired before it finished. Make it again.</p>';
+      return;
+    }
+
+    for await (const event of readEvents(response.body, abort.signal)) {
+      switch (event.type) {
+        case "status":
+          el.bookGhostText.textContent = event.text.replace(/\s+/g, " ").trim().slice(-140);
+          break;
+        case "source": {
+          sources.push({ title: event.title, url: event.url });
+          const item = document.createElement("li");
+          item.textContent = event.title;
+          el.readingList.append(item);
+          break;
+        }
+        case "text":
+          text += event.text;
+          paint();
+          break;
+        case "error":
+          settle();
+          el.writing.hidden = true;
+          el.bookBody.innerHTML = `${text ? renderMarkdown(text) : ""}<p class="failed">${event.message}</p>`;
+          save("failed");
+          return;
+        case "done":
+          settle();
+          el.writing.hidden = true;
+          el.bookTag.textContent = "Textbook";
+          el.bookBody.innerHTML = renderMarkdown(text);
+          save("done");
+          return;
+        default:
+          break;
+      }
+    }
+
+    // The stream ended without a verdict — the server went away mid-book.
+    settle();
+    el.writing.hidden = true;
+    if (text.trim()) {
+      el.bookBody.innerHTML = renderMarkdown(text);
+      save("done");
+    } else {
+      el.bookBody.innerHTML = '<p class="failed">That cut out. Try again.</p>';
+    }
+  } catch (error) {
+    settle();
+    if (error.name === "AbortError") {
+      // Left the screen mid-write. The job keeps running on the server.
+      if (text.trim()) save("writing");
+      return;
+    }
+    el.writing.hidden = true;
+    el.bookBody.innerHTML = `${text ? renderMarkdown(text) : ""}<p class="failed">Lost the connection. Open it again to pick it back up.</p>`;
+    save("writing");
+  } finally {
+    if (state.abort === abort) state.abort = null;
+  }
+}
+
 /* ── Log ────────────────────────────────────────────────────────────────── */
 
 const RELATIVE = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
@@ -478,10 +843,84 @@ function when(timestamp) {
   return new Date(timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+el.selectToggle.addEventListener("click", () => setSelecting(true));
+el.selectCancel.addEventListener("click", () => setSelecting(false));
+
+el.selectBook.addEventListener("click", () => {
+  const chosen = store.list().filter((thought) => state.selected.has(thought.id));
+  if (chosen.length === 0) return;
+  setSelecting(false);
+  requestBrief(chosen);
+});
+
+/**
+ * Multi-select exists so a textbook can be built from several passes at the
+ * same idea. Only developed thoughts are selectable — there is nothing to read
+ * in one that never got an answer.
+ */
+function setSelecting(on) {
+  state.selecting = on;
+  state.selected.clear();
+  el.selectToggle.hidden = on;
+  el.selectCancel.hidden = !on;
+  el.selectBook.hidden = !on;
+  el.selectBook.disabled = true;
+  el.selectBook.textContent = "Make a textbook";
+  renderLog();
+}
+
+function toggleSelected(id, button) {
+  if (state.selected.has(id)) state.selected.delete(id);
+  else state.selected.add(id);
+
+  button.classList.toggle("selected", state.selected.has(id));
+  button.querySelector(".tick").textContent = state.selected.has(id) ? "✓" : "";
+
+  const count = state.selected.size;
+  el.selectBook.disabled = count === 0;
+  el.selectBook.textContent =
+    count === 0 ? "Make a textbook" : `Make a textbook from ${count}`;
+}
+
+function renderBooks() {
+  const books = store.listBooks();
+  el.booksSection.hidden = books.length === 0;
+  el.books.replaceChildren();
+
+  for (const book of books) {
+    const button = document.createElement("button");
+    button.type = "button";
+
+    const title = document.createElement("span");
+    title.className = "title";
+    title.textContent = book.title || "Untitled";
+
+    const meta = document.createElement("span");
+    meta.className = book.status === "writing" ? "meta undeveloped" : "meta";
+    meta.textContent =
+      book.status === "writing"
+        ? `${when(book.createdAt)} · still writing`
+        : `${when(book.createdAt)} · ${book.sources?.length ?? 0} sources`;
+
+    const snippet = document.createElement("span");
+    snippet.className = "snippet";
+    snippet.textContent = book.building || extractSnippet(book.text ?? "");
+
+    button.append(title, meta, snippet);
+    button.addEventListener("click", () => openBook(book));
+
+    const item = document.createElement("li");
+    item.append(button);
+    el.books.append(item);
+  }
+}
+
 function renderLog() {
+  renderBooks();
   const thoughts = store.list();
 
   el.logEmpty.hidden = thoughts.length > 0;
+  el.selectToggle.hidden = state.selecting || !thoughts.some((entry) => entry.turns?.length);
   el.logCount.textContent =
     thoughts.length > 0 ? `${thoughts.length} caught, kept on this phone` : "";
 
@@ -513,8 +952,21 @@ function renderLog() {
     snippet.className = "snippet";
     snippet.textContent = last ? extractSnippet(last.text) : thought.thought;
 
+    if (state.selecting) {
+      const tick = document.createElement("span");
+      tick.className = "tick";
+      title.prepend(tick);
+    }
+
     button.append(title, meta, snippet);
-    button.addEventListener("click", () => openThought(thought));
+
+    if (state.selecting) {
+      // An undeveloped thought has no answers to read, so it cannot contribute.
+      button.disabled = !last;
+      button.addEventListener("click", () => toggleSelected(thought.id, button));
+    } else {
+      button.addEventListener("click", () => openThought(thought));
+    }
 
     const item = document.createElement("li");
     item.append(button);

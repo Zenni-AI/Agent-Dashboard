@@ -36,7 +36,12 @@ const MIME: Record<string, string> = {
 };
 
 function start(config: Config): void {
-  const client = new Anthropic({ apiKey: config.apiKey });
+  const client = new Anthropic({
+    apiKey: config.apiKey,
+    ...(config.workspaceId
+      ? { defaultHeaders: { "anthropic-workspace-id": config.workspaceId } }
+      : {}),
+  });
   const limiter = new RateLimiter(config.rateLimit, config.rateWindowMs);
   const jobs = new JobStore();
 

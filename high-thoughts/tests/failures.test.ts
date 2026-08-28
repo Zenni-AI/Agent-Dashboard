@@ -59,3 +59,31 @@ describe("formatEvent", () => {
     expect(JSON.parse(framed.slice(6))).toEqual({ type: "text", text: "a\n\nb" });
   });
 });
+
+describe("describeFailure on a 400", () => {
+  const badRequest = (message: string) =>
+    Anthropic.APIError.generate(
+      400,
+      { type: "error", error: { type: "invalid_request_error", message } },
+      message,
+      new Headers(),
+    );
+
+  it("passes the API's own explanation through, because a 400 is fixable", () => {
+    const result = describeFailure(
+      badRequest("anthropic-workspace-id is required when authenticating with an identity-linked API key"),
+    );
+    expect(result.message).toMatch(/anthropic-workspace-id is required/);
+    expect(result.retryable).toBe(false);
+  });
+
+  it("redacts anything key-shaped before it reaches the phone", () => {
+    const result = describeFailure(badRequest("bad key sk-ant-api03-SECRETVALUE_x9 rejected"));
+    expect(result.message).not.toContain("SECRETVALUE");
+    expect(result.message).toContain("[redacted]");
+  });
+
+  it("caps the length so an upstream essay cannot fill the screen", () => {
+    expect(describeFailure(badRequest("x".repeat(2000))).message.length).toBeLessThan(360);
+  });
+});

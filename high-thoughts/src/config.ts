@@ -2,6 +2,12 @@ import "dotenv/config";
 
 export interface Config {
   apiKey: string;
+  /**
+   * Required only for an identity-linked key — one scoped to the organization
+   * and tied to a user rather than to a workspace. Those are rejected outright
+   * unless the request names the workspace it acts in.
+   */
+  workspaceId: string | null;
   model: string;
   port: number;
   host: string;
@@ -38,6 +44,7 @@ export function loadConfig(): Config {
 
   return {
     apiKey,
+    workspaceId: process.env.ANTHROPIC_WORKSPACE_ID?.trim() || null,
     model: process.env.HIGH_THOUGHTS_MODEL?.trim() || "claude-opus-5",
     port: int("PORT", 8080),
     host: process.env.HOST?.trim() || "0.0.0.0",

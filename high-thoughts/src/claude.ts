@@ -95,6 +95,19 @@ export async function* developThought(options: DevelopOptions): AsyncGenerator<S
  * or tells them to wait, so it tracks whether trying again in five seconds
  * could plausibly work — not whether the error was the user's fault.
  */
+/**
+ * The API's own explanation, scrubbed.
+ *
+ * Never let anything key-shaped through: this string is sent to the phone, and
+ * an upstream error that quoted a credential would put it on screen.
+ */
+function apiMessage(error: InstanceType<typeof Anthropic.APIError>): string {
+  const body = error.error as { error?: { message?: unknown } } | undefined;
+  const detail = body?.error?.message;
+  const text = typeof detail === "string" && detail.length > 0 ? detail : error.message;
+  return text.replace(/sk-ant-[A-Za-z0-9_-]+/g, "[redacted]").slice(0, 300);
+}
+
 export function describeFailure(error: unknown): { message: string; retryable: boolean } {
   if (error instanceof Anthropic.APIUserAbortError) {
     return { message: "Stopped.", retryable: true };
@@ -109,7 +122,10 @@ export function describeFailure(error: unknown): { message: string; retryable: b
     return { message: "Too many thoughts at once. Give it a few seconds.", retryable: true };
   }
   if (error instanceof Anthropic.BadRequestError) {
-    return { message: "That request was malformed and could not be sent.", retryable: false };
+    // A 400 is nearly always a configuration problem the operator can fix —
+    // a missing workspace id, an unavailable model — and hiding it behind a
+    // generic sentence turns a two-minute fix into an afternoon.
+    return { message: `The API rejected that: ${apiMessage(error)}`, retryable: false };
   }
   if (error instanceof Anthropic.APIConnectionError) {
     return { message: "Could not reach the model. Check your signal.", retryable: true };

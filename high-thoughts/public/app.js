@@ -631,7 +631,7 @@ function maybeOffer(thought) {
 
   el.offerReason.textContent = offerReason(thought);
   el.offerTitle.textContent =
-    store.listBooks().length > 0 ? "Add this to your Journey" : "Start your Thought Journey";
+    store.listBooks().length > 0 ? "Add this to your Knowledge Library" : "Start your Knowledge Library";
 
   el.offerVeil.hidden = false;
   saveOfferState(recordOffer(state.offer, thought.id));

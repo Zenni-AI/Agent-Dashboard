@@ -1,0 +1,70 @@
+/* ── Demo frame ────────────────────────────────────────────────────────────
+ *
+ * The app's own stylesheet is untouched above. This adds only what a hosted
+ * demo needs: a note saying what is canned, and a phone-shaped column on a
+ * desktop screen so the layout is judged at the width it was designed for.
+ */
+
+.demo-note {
+  position: relative;
+  z-index: 60;
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 11px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(180, 140, 255, 0.09);
+  color: var(--ink-dim);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.demo-note[hidden] { display: none; }
+.demo-note strong { color: var(--ink); font-weight: 650; }
+
+.demo-note button {
+  flex: none;
+  margin-left: auto;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.demo-note button:focus-visible,
+.tabs button:focus-visible,
+.go:focus-visible,
+.mode:focus-visible {
+  outline: 2px solid var(--glow);
+  outline-offset: 2px;
+}
+
+/* On a wide screen, hold the app at phone width so it is seen as intended. */
+@media (min-width: 720px) {
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #app, .demo-note {
+    width: 420px;
+    border-left: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+  }
+
+  .tabs {
+    left: 50%;
+    right: auto;
+    width: 420px;
+    transform: translateX(-50%);
+    border-left: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+  }
+}

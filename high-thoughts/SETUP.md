@@ -80,6 +80,19 @@ The textbook is the only expensive one, and it's the one you charge for. Watch r
 
 ---
 
+## Seeing it without a key
+
+```bash
+node scripts/build-demo.mjs demo.html
+```
+
+Builds a single self-contained file from the real `public/` sources, with the
+network replaced by canned model answers. Open it in any browser — every screen
+and interaction works. Regenerated from source each time, so it cannot drift
+from what ships.
+
+---
+
 ## Checking it works
 
 ```bash

@@ -1,5 +1,5 @@
 import type { Mode } from "./modes.js";
-import type { Turn } from "./types.js";
+import type { Profile, Turn } from "./types.js";
 
 /**
  * The half of the system prompt that never changes.
@@ -30,6 +30,43 @@ Formatting, exactly:
 - First line: "# " followed by a name for the idea. Four words or fewer. A name, not a description — the thing they would say to a friend to refer to it later. Never put quotes around it.
 - Then the required sections, each introduced by "## " and its exact heading, in the given order. No extra sections, no closing remarks after the last one.`;
 
+/**
+ * Render what the app knows about this person.
+ *
+ * The instruction matters more than the data. A model handed "this person is
+ * into hydroponics" will cheerfully bend the next unrelated idea toward
+ * hydroponics, which is worse than knowing nothing — so it is told explicitly
+ * that this is for calibration, not for steering, and never to be mentioned.
+ */
+export function renderProfile(profile: Profile): string {
+  const parts: string[] = [
+    "Some background on the person, from their own history in this app. Use it to pitch the specifics — their level, their materials, their constraints — and to avoid re-proposing what they have already rejected.",
+    "Do NOT steer this thought toward their past interests, do not mention that you know any of this, and do not compliment them on it. If none of it is relevant to what they just said, ignore all of it.",
+    `They have developed ${profile.thoughtCount} thoughts here.`,
+  ];
+
+  if (profile.subjects.length > 0) {
+    parts.push(`Subjects that keep coming up: ${profile.subjects.join(", ")}.`);
+  }
+  if (profile.returning.length > 0) {
+    const ideas = profile.returning
+      .map((idea) => `${idea.title} (${idea.passes} passes)`)
+      .join("; ");
+    parts.push(`Ideas they keep returning to: ${ideas}.`);
+  }
+  if (profile.keeps.length > 0) {
+    parts.push(`Things they have marked as keepers before:\n${profile.keeps.map((k) => `- ${k}`).join("\n")}`);
+  }
+  if (profile.kills.length > 0) {
+    parts.push(`Things they have rejected before — do not re-propose these:\n${profile.kills.map((k) => `- ${k}`).join("\n")}`);
+  }
+  if (profile.books.length > 0) {
+    parts.push(`They already own researched books on: ${profile.books.join(", ")}. Assume that ground is covered.`);
+  }
+
+  return parts.join("\n\n");
+}
+
 export interface DevelopPrompt {
   system: string;
   messages: Array<{ role: "user" | "assistant"; content: string }>;
@@ -47,17 +84,24 @@ export function buildDevelopPrompt(options: {
   thought: string;
   mode: Mode;
   history?: Turn[];
+  profile?: Profile | null;
 }): DevelopPrompt {
-  const { thought, mode, history = [] } = options;
+  const { thought, mode, history = [], profile = null } = options;
 
   const sections = mode.sections.map((heading) => `## ${heading}`).join("\n");
 
-  const system = `${BASE}
+  const systemBase = `${BASE}
 
 Required sections for this answer, in this order:
 ${sections}
 
 ${mode.instruction}`;
+
+  // The profile goes in the system prompt, ahead of the volatile thought, so
+  // it sits in the cacheable prefix rather than invalidating it every request.
+  const system = profile
+    ? `${systemBase}\n\n---\n\n${renderProfile(profile)}`
+    : systemBase;
 
   const messages: DevelopPrompt["messages"] = [
     { role: "user", content: `The thought:\n\n${thought}` },

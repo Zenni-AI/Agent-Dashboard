@@ -6,6 +6,7 @@ import {
   recordOffer,
   shouldOffer,
 } from "./offer.js";
+import { buildProfile, isUseful } from "./profile.js";
 import * as store from "./store.js";
 
 const $ = (id) => document.getElementById(id);
@@ -113,6 +114,15 @@ const state = {
   /** How often we have interrupted, and about what. */
   offer: null,
 };
+
+/**
+ * What the app knows about this person, rebuilt from the local log each time
+ * it is needed. Cheap, always current, and never stored anywhere but here.
+ */
+function currentProfile() {
+  const profile = buildProfile(store.list(), store.listBooks());
+  return isUseful(profile) ? profile : null;
+}
 
 /* ── Screens ────────────────────────────────────────────────────────────── */
 
@@ -492,6 +502,7 @@ async function runDevelopment(modeId) {
         thought: thought.thought,
         mode: modeId,
         history: store.historyFor(thought),
+        profile: currentProfile(),
       }),
     });
 
@@ -671,7 +682,10 @@ async function requestBrief(thoughts) {
     const response = await fetch("/api/brief", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chains: thoughts.map(store.chainFor) }),
+      body: JSON.stringify({
+        chains: thoughts.map(store.chainFor),
+        profile: currentProfile(),
+      }),
     });
 
     const data = await response.json().catch(() => ({}));

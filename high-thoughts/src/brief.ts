@@ -2,7 +2,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { MODES } from "./modes.js";
-import type { MarkedLine, ThoughtChain } from "./types.js";
+import { renderProfile } from "./prompts.js";
+import type { MarkedLine, Profile, ThoughtChain } from "./types.js";
 
 /**
  * The brief: what the log agent hands the textbook agent.
@@ -69,6 +70,7 @@ export interface BriefOptions {
   client: Anthropic;
   model: string;
   chains: ThoughtChain[];
+  profile?: Profile | null;
   signal?: AbortSignal;
 }
 
@@ -80,7 +82,7 @@ export interface BriefOptions {
  * value is in reading carefully rather than at length.
  */
 export async function readTheLog(options: BriefOptions): Promise<Brief> {
-  const { client, model, chains, signal } = options;
+  const { client, model, chains, profile, signal } = options;
 
   const response = await client.messages.parse(
     {
@@ -91,7 +93,7 @@ export async function readTheLog(options: BriefOptions): Promise<Brief> {
         effort: "medium",
         format: zodOutputFormat(BriefSchema),
       },
-      system: SYSTEM,
+      system: profile ? `${SYSTEM}\n\n---\n\n${renderProfile(profile)}` : SYSTEM,
       messages: [{ role: "user", content: renderChains(chains) }],
     },
     signal ? { signal } : undefined,

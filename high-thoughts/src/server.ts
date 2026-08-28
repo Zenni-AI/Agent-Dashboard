@@ -13,6 +13,7 @@ import { RateLimiter } from "./ratelimit.js";
 import { closeStream, openStream, sendEvent } from "./sse.js";
 import { CHAPTERS, writeTextbook } from "./textbook.js";
 import {
+  normaliseProfile,
   validateBrief,
   validateChainsRequest,
   validateDevelopRequest,
@@ -162,6 +163,7 @@ async function develop(
     thought: request.thought,
     mode: resolveMode(request.mode),
     history: request.history,
+    profile: request.profile,
     signal: abort.signal,
   });
 
@@ -187,6 +189,7 @@ async function brief(
   }
 
   let chains;
+  let profile = null;
   try {
     const payload = await readJson(req, config.maxThoughtChars * 8 * config.maxChains);
     chains = validateChainsRequest(payload, {
@@ -194,6 +197,7 @@ async function brief(
       maxHistoryTurns: config.maxHistoryTurns,
       maxChains: config.maxChains,
     });
+    profile = normaliseProfile((payload as Record<string, unknown>)?.profile);
   } catch (error) {
     if (error instanceof ValidationError) return sendJson(res, 400, { error: error.message });
     return sendJson(res, 400, { error: (error as Error).message });
@@ -207,6 +211,7 @@ async function brief(
       client,
       model: config.model,
       chains,
+      profile,
       signal: abort.signal,
     });
     if (res.writableEnded) return;

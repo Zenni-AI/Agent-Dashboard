@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Mode } from "./modes.js";
 import { buildDevelopPrompt } from "./prompts.js";
-import type { StreamEvent, Turn } from "./types.js";
+import type { Profile, StreamEvent, Turn } from "./types.js";
 
 /**
  * Server-side refusal fallback. If a safety classifier declines the request,
@@ -17,6 +17,7 @@ export interface DevelopOptions {
   thought: string;
   mode: Mode;
   history: Turn[];
+  profile?: Profile | null;
   signal?: AbortSignal;
 }
 
@@ -30,8 +31,8 @@ export interface DevelopOptions {
  * the difference between "working" and "broken".
  */
 export async function* developThought(options: DevelopOptions): AsyncGenerator<StreamEvent> {
-  const { client, model, thought, mode, history, signal } = options;
-  const { system, messages } = buildDevelopPrompt({ thought, mode, history });
+  const { client, model, thought, mode, history, profile, signal } = options;
+  const { system, messages } = buildDevelopPrompt({ thought, mode, history, profile });
 
   yield { type: "start", mode: mode.id, model };
 

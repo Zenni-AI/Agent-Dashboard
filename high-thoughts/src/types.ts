@@ -28,11 +28,26 @@ export interface ThoughtChain {
   turns: Turn[];
 }
 
+/**
+ * What the app has worked out about this person, derived on their phone from
+ * their own log and sent with each request. The server never stores it.
+ */
+export interface Profile {
+  thoughtCount: number;
+  subjects: string[];
+  returning: Array<{ title: string; passes: number }>;
+  keeps: string[];
+  kills: string[];
+  favouriteMode: string | null;
+  books: string[];
+}
+
 /** The validated shape of POST /api/develop. */
 export interface DevelopRequest {
   thought: string;
   mode: ModeId;
   history: Turn[];
+  profile: Profile | null;
 }
 
 /** Events the server streams to the phone, one per SSE frame. */

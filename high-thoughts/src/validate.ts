@@ -1,6 +1,6 @@
 import { BriefSchema, type Brief } from "./brief.js";
 import { isModeId, MODES } from "./modes.js";
-import type { DevelopRequest, MarkedLine, ThoughtChain, Turn } from "./types.js";
+import type { DevelopRequest, MarkedLine, Profile, ThoughtChain, Turn } from "./types.js";
 
 export class ValidationError extends Error {
   constructor(message: string) {
@@ -46,7 +46,58 @@ export function validateDevelopRequest(body: unknown, options: ValidateOptions):
 
   const mode = isModeId(raw.mode) ? raw.mode : MODES.riff.id;
 
-  return { thought, mode, history: normaliseHistory(raw.history, options.maxHistoryTurns) };
+  return {
+    thought,
+    mode,
+    history: normaliseHistory(raw.history, options.maxHistoryTurns),
+    profile: normaliseProfile(raw.profile),
+  };
+}
+
+const strings = (value: unknown, max: number, chars = 200): string[] =>
+  Array.isArray(value)
+    ? value
+        .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+        .slice(0, max)
+        .map((item) => item.trim().slice(0, chars))
+    : [];
+
+/**
+ * The profile is derived on the phone, so it is untrusted like everything else
+ * — and it lands in a prompt, which is the reason every field is capped rather
+ * than merely type-checked.
+ */
+export function normaliseProfile(value: unknown): Profile | null {
+  if (typeof value !== "object" || value === null) return null;
+  const raw = value as Record<string, unknown>;
+
+  const returning = Array.isArray(raw.returning)
+    ? raw.returning
+        .filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null)
+        .slice(0, 5)
+        .map((item) => ({
+          title: typeof item.title === "string" ? item.title.slice(0, 80) : "untitled",
+          passes: Number.isInteger(item.passes) ? Math.min(item.passes as number, 99) : 2,
+        }))
+    : [];
+
+  const profile: Profile = {
+    thoughtCount: Number.isInteger(raw.thoughtCount) ? Math.min(raw.thoughtCount as number, 9999) : 0,
+    subjects: strings(raw.subjects, 6, 40),
+    returning,
+    keeps: strings(raw.keeps, 12),
+    kills: strings(raw.kills, 12),
+    favouriteMode: isModeId(raw.favouriteMode) ? raw.favouriteMode : null,
+    books: strings(raw.books, 6, 80),
+  };
+
+  const empty =
+    profile.subjects.length === 0 &&
+    profile.returning.length === 0 &&
+    profile.keeps.length === 0 &&
+    profile.books.length === 0;
+
+  return empty ? null : profile;
 }
 
 function normaliseHistory(value: unknown, max: number): Turn[] {

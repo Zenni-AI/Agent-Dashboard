@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { BriefSchema, renderChains } from "../src/brief.js";
 import { CHAPTERS, renderBrief } from "../src/textbook.js";
-import { validateBrief, validateChainsRequest, ValidationError } from "../src/validate.js";
+import {
+  normaliseProfile,
+  validateBrief,
+  validateChainsRequest,
+  ValidationError,
+} from "../src/validate.js";
 
 const options = { maxThoughtChars: 4000, maxHistoryTurns: 6, maxChains: 3 };
 
@@ -144,5 +149,39 @@ describe("renderBrief", () => {
     expect(rendered).not.toMatch(/Decided —/);
     expect(rendered).not.toMatch(/Ruled out —/);
     expect(rendered).toContain("A rocket car for the salt flats.");
+  });
+});
+
+describe("normaliseProfile", () => {
+  it("caps every list so a hand-edited profile cannot flood the prompt", () => {
+    const profile = normaliseProfile({
+      thoughtCount: 5,
+      subjects: Array.from({ length: 50 }, (_, i) => `s${i}`),
+      keeps: Array.from({ length: 50 }, () => "x".repeat(900)),
+      returning: Array.from({ length: 40 }, () => ({ title: "t", passes: 2 })),
+      books: Array.from({ length: 30 }, () => "b"),
+    });
+    expect(profile?.subjects).toHaveLength(6);
+    expect(profile?.keeps).toHaveLength(12);
+    expect(profile?.keeps[0]).toHaveLength(200);
+    expect(profile?.returning).toHaveLength(5);
+    expect(profile?.books).toHaveLength(6);
+  });
+
+  it("returns null for junk or an empty profile", () => {
+    expect(normaliseProfile(null)).toBeNull();
+    expect(normaliseProfile("nope")).toBeNull();
+    expect(normaliseProfile({ thoughtCount: 3 })).toBeNull();
+  });
+
+  it("drops a mode it does not recognise", () => {
+    const profile = normaliseProfile({ subjects: ["bees"], favouriteMode: "chaos" });
+    expect(profile?.favouriteMode).toBeNull();
+  });
+
+  it("keeps a real one", () => {
+    const profile = normaliseProfile({ subjects: ["bees"], favouriteMode: "deep" });
+    expect(profile?.favouriteMode).toBe("deep");
+    expect(profile?.subjects).toEqual(["bees"]);
   });
 });

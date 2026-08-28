@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { readTheLog } from "./brief.js";
 import { describeFailure, developThought } from "./claude.js";
 import { loadConfig, MissingKeyError, type Config } from "./config.js";
+import { CreditStore } from "./credits.js";
 import { JobStore, newJobId } from "./jobs.js";
 import { publicModes, resolveMode } from "./modes.js";
 import { RateLimiter } from "./ratelimit.js";
@@ -44,9 +45,10 @@ function start(config: Config): void {
   });
   const limiter = new RateLimiter(config.rateLimit, config.rateWindowMs);
   const jobs = new JobStore();
+  const credits = new CreditStore(config.creditsFile);
 
   const server = createServer((req, res) => {
-    handle(req, res, config, client, limiter, jobs).catch((error) => {
+    handle(req, res, config, client, limiter, jobs, credits).catch((error) => {
       console.error("unhandled request failure:", error);
       if (!res.headersSent) sendJson(res, 500, { error: "Something broke." });
       closeStream(res);
@@ -71,6 +73,7 @@ async function handle(
   client: Anthropic,
   limiter: RateLimiter,
   jobs: JobStore,
+  credits: CreditStore,
 ): Promise<void> {
   const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
 
@@ -79,6 +82,15 @@ async function handle(
 
   if (url.pathname === "/api/health") {
     return sendJson(res, 200, { ok: true, model: config.model });
+  }
+
+  // How many books this token can still make. The phone asks before it offers.
+  if (url.pathname === "/api/credits") {
+    const token = bearerToken(req, url);
+    return sendJson(res, 200, {
+      credits: credits.balance(token),
+      known: credits.known(token),
+    });
   }
 
   if (url.pathname === "/api/modes") {
@@ -96,7 +108,7 @@ async function handle(
   // not anyone is still listening.
   if (url.pathname === "/api/textbook") {
     if (req.method !== "POST") return sendJson(res, 405, { error: "POST only." });
-    return startTextbook(req, res, config, client, limiter, jobs);
+    return startTextbook(req, res, config, client, limiter, jobs, credits);
   }
 
   // Attach to a running or finished textbook. Replays from the start, so a
@@ -235,6 +247,7 @@ async function startTextbook(
   client: Anthropic,
   limiter: RateLimiter,
   jobs: JobStore,
+  credits: CreditStore,
 ): Promise<void> {
   const limit = limiter.check(clientKey(req));
   if (!limit.allowed) {
@@ -251,12 +264,50 @@ async function startTextbook(
     return sendJson(res, 400, { error: (error as Error).message });
   }
 
+  // Charge before anything reaches the model. A book costs real money, so an
+  // unpaid request must never be able to start one — this check is the only
+  // thing standing between the endpoint and an unbounded bill.
+  const token = bearerToken(req, new URL(req.url ?? "/", "http://localhost"));
+  const paid = await credits.redeem(token);
+
+  if (!paid.ok) {
+    return sendJson(res, 402, {
+      error:
+        paid.reason === "empty"
+          ? "You've used your last book. Add more to keep going."
+          : "This one needs a book credit.",
+      reason: paid.reason,
+    });
+  }
+
   // Deliberately not tied to this request's lifetime: the person is expected
   // to put the phone down while it writes.
   const id = newJobId();
-  jobs.start(id, () => writeTextbook({ client, model: config.model, brief: confirmed }));
+  jobs.start(
+    id,
+    () => writeTextbook({ client, model: config.model, brief: confirmed }),
+    // Nobody pays for a book they never received.
+    async (outcome) => {
+      if (outcome === "failed") {
+        await credits.refund(token);
+        console.log("book failed; credit refunded");
+      }
+    },
+  );
 
-  return sendJson(res, 202, { id });
+  return sendJson(res, 202, { id, creditsLeft: paid.remaining });
+}
+
+/**
+ * The caller's book credit, from the Authorization header or, as a fallback,
+ * the query string — an EventSource-style GET cannot set headers.
+ */
+function bearerToken(req: IncomingMessage, url: URL): string | undefined {
+  const header = req.headers.authorization;
+  if (typeof header === "string" && header.startsWith("Bearer ")) {
+    return header.slice(7).trim();
+  }
+  return url.searchParams.get("token") ?? undefined;
 }
 
 async function streamJob(res: ServerResponse, jobs: JobStore, id: string): Promise<void> {

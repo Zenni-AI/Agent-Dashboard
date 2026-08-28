@@ -41,7 +41,11 @@ export class JobStore {
    * Start a generator running in the background and return its job id
    * immediately. The generator is fully drained even if nobody ever subscribes.
    */
-  start(id: string, produce: () => AsyncGenerator<StreamEvent>): Job {
+  start(
+    id: string,
+    produce: () => AsyncGenerator<StreamEvent>,
+    onSettled?: (status: JobStatus) => void | Promise<void>,
+  ): Job {
     const job: Job = { id, status: "running", events: [], createdAt: Date.now() };
     const entry = { job, waiters: [] as Waiter[] };
     this.jobs.set(id, entry);
@@ -67,6 +71,13 @@ export class JobStore {
         if (job.status === "running") job.status = "done";
         job.finishedAt = Date.now();
         this.wake(entry);
+
+        // Runs whatever the outcome, so a failed book can hand its credit back.
+        try {
+          await onSettled?.(job.status);
+        } catch (error) {
+          console.error(`job ${id} settle hook threw:`, error);
+        }
       }
     })();
 

@@ -96,6 +96,8 @@
       <div class="brief-lists" id="brief-lists"></div>
 
       <p class="brief-check">Is that right?</p>
+      <p class="paywall" id="paywall" hidden></p>
+
       <div class="brief-actions">
         <button type="button" class="go" id="brief-go">That's it — write it</button>
         <button type="button" class="brief-fix" id="brief-fix">Not quite — go back and change it</button>
@@ -161,6 +163,17 @@
     </div>
 
     <ul class="log books" id="books"></ul>
+
+    <div class="credits" id="credits">
+      <p class="credits-line" id="credits-line"></p>
+      <button type="button" class="chip" id="code-open">I have a code</button>
+      <form class="code-form" id="code-form" hidden>
+        <input type="text" id="code-input" placeholder="ht_…" autocomplete="off"
+               spellcheck="false" aria-label="Your book code" />
+        <button type="submit" class="chip primary">Add</button>
+      </form>
+      <p class="hint" id="code-msg"></p>
+    </div>
   </section>
 
 </main>

@@ -63,7 +63,57 @@ const el = {
   offerTitle: $("offer-title"),
   offerGo: $("offer-go"),
   offerNo: $("offer-no"),
+  paywall: $("paywall"),
+  credits: $("credits-line"),
+  codeOpen: $("code-open"),
+  codeForm: $("code-form"),
+  codeInput: $("code-input"),
+  codeMsg: $("code-msg"),
 };
+
+/* ── Book credits ───────────────────────────────────────────────────────────
+ *
+ * A book costs real money to make, so the server will not make one without a
+ * credit. The token is the bearer of that balance — kept on the phone, sent
+ * only to our own API, and never shown after it is entered.
+ */
+
+const TOKEN_KEY = "high-thoughts/token/v1";
+
+function bookToken() {
+  try {
+    return localStorage.getItem(TOKEN_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function setBookToken(token) {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // Private mode. They can still spend it this session.
+  }
+  state.token = token;
+}
+
+/** Ask the server what is left. The phone is never the authority on this. */
+async function refreshCredits() {
+  const token = state.token;
+  if (!token) {
+    state.credits = 0;
+    return 0;
+  }
+  try {
+    const response = await fetch(`/api/credits?token=${encodeURIComponent(token)}`);
+    const data = await response.json();
+    state.credits = data.credits ?? 0;
+  } catch {
+    // Leave the last known figure; the server decides at spend time anyway.
+  }
+  return state.credits;
+}
 
 const OFFER_KEY = "high-thoughts/offer/v1";
 
@@ -113,6 +163,9 @@ const state = {
   selected: new Set(),
   /** How often we have interrupted, and about what. */
   offer: null,
+  /** The book credit this phone holds, and what the server last said was left. */
+  token: null,
+  credits: 0,
 };
 
 /**
@@ -707,6 +760,8 @@ async function requestBrief(thoughts) {
 
 function renderBrief(brief) {
   el.briefGhost.hidden = true;
+  el.paywall.hidden = true;
+  el.briefGo.disabled = false;
   el.briefTitle.textContent = brief.title || "Your idea";
   el.briefBuilding.textContent = brief.building || "";
 
@@ -751,6 +806,22 @@ function renderBrief(brief) {
   el.briefBody.hidden = false;
 }
 
+/**
+ * Say why the book did not start, at the moment they asked for it.
+ *
+ * Deliberately not a wall in front of the brief — the brief is free, and it is
+ * where they find out we understood them. The charge lands only on the thing
+ * that actually costs money to make.
+ */
+function showPaywall(reason) {
+  el.paywall.textContent =
+    reason === "empty"
+      ? "That was your last book. Add another code in your Library to keep going."
+      : "Books are paid for one at a time — each one is real research, and it costs real money to make. Add a code in your Library.";
+  el.paywall.hidden = false;
+  el.briefGo.disabled = true;
+}
+
 /* ── The textbook ───────────────────────────────────────────────────────── */
 
 el.briefGo.addEventListener("click", () => {
@@ -780,15 +851,28 @@ async function startTextbook(brief) {
   try {
     const response = await fetch("/api/textbook", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}),
+      },
       body: JSON.stringify({ brief }),
     });
 
     const data = await response.json().catch(() => ({}));
+
+    // Every book is charged for. No credit, no book.
+    if (response.status === 402) {
+      state.credits = 0;
+      showPaywall(data.reason);
+      return;
+    }
+
     if (!response.ok || !data.id) {
       el.briefError.textContent = data.error ?? `The server said no (${response.status}).`;
       return;
     }
+
+    if (typeof data.creditsLeft === "number") state.credits = data.creditsLeft;
 
     const book = store.saveBook({
       id: data.id,
@@ -805,7 +889,10 @@ async function startTextbook(brief) {
   } catch {
     el.briefError.textContent = "Could not reach the app. Try again.";
   } finally {
-    el.briefGo.disabled = false;
+    // Not when the paywall is up — showPaywall just disabled this deliberately,
+    // and re-enabling it here would leave a button that looks ready to spend a
+    // credit the person does not have.
+    if (el.paywall.hidden) el.briefGo.disabled = false;
   }
 }
 
@@ -981,7 +1068,59 @@ function toggleSelected(id, button) {
     count === 0 ? "Make a textbook" : `Make a textbook from ${count}`;
 }
 
+el.codeOpen.addEventListener("click", () => {
+  el.codeForm.hidden = false;
+  el.codeOpen.hidden = true;
+  el.codeInput.focus();
+});
+
+el.codeForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const code = el.codeInput.value.trim();
+  el.codeMsg.textContent = "";
+
+  if (!/^ht_[0-9a-f]{48}$/.test(code)) {
+    el.codeMsg.textContent = "That doesn't look like a code. They start with ht_.";
+    return;
+  }
+
+  // Check it against the server before storing — a code that buys nothing
+  // should be rejected here, not at the moment they try to spend it.
+  try {
+    const response = await fetch(`/api/credits?token=${encodeURIComponent(code)}`);
+    const data = await response.json();
+
+    if (!data.known) {
+      el.codeMsg.textContent = "We don't recognise that code.";
+      return;
+    }
+
+    setBookToken(code);
+    state.credits = data.credits ?? 0;
+    el.codeInput.value = "";
+    el.codeForm.hidden = true;
+    el.codeOpen.hidden = false;
+    renderLibrary();
+  } catch {
+    el.codeMsg.textContent = "Couldn't reach the app. Try again.";
+  }
+});
+
+function renderCredits() {
+  const count = state.credits;
+  if (!state.token) {
+    el.credits.textContent = "No books left. Each one is researched from scratch, so each one is paid for.";
+    return;
+  }
+  el.credits.innerHTML =
+    count > 0
+      ? `<strong>${count}</strong> book${count === 1 ? "" : "s"} left to make.`
+      : "No books left. Add a code to make another.";
+}
+
 function renderLibrary() {
+  renderCredits();
+  refreshCredits().then(renderCredits);
   const books = store.listBooks();
   const done = books.filter((book) => book.status === "done").length;
 
@@ -1082,6 +1221,8 @@ function renderLog() {
 /* ── Boot ───────────────────────────────────────────────────────────────── */
 
 state.offer = loadOfferState();
+state.token = bookToken();
+refreshCredits();
 renderModes();
 loadModes();
 updateCounter();

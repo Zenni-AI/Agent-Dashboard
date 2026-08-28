@@ -937,3 +937,54 @@ textarea::placeholder { color: var(--ink-faint); }
   border-left: 3px solid var(--glow);
   padding-left: 14px;
 }
+
+/* ── Credits ──────────────────────────────────────────────────────────────
+ *
+ * A book costs real money to make, so the app has to be able to say so — and
+ * to say it without feeling like a toll booth. The balance sits under the
+ * shelf where it reads as stock, not as a meter.
+ */
+
+.credits {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.credits-line {
+  margin: 0 0 12px;
+  font-size: 13.5px;
+  color: var(--ink-dim);
+}
+
+.credits-line strong { color: var(--glow-2); font-weight: 650; }
+
+.code-form { display: flex; gap: 8px; margin-top: 10px; }
+.code-form[hidden] { display: none; }
+
+.code-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+
+.code-form input:focus { outline: none; border-color: var(--glow); }
+
+.paywall {
+  margin: 0 0 16px;
+  padding: 13px 15px;
+  border-radius: 12px;
+  border: 1px solid var(--glow);
+  background: rgba(180, 140, 255, 0.1);
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.paywall[hidden] { display: none; }

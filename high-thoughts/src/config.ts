@@ -20,6 +20,8 @@ export interface Config {
   maxHistoryTurns: number;
   /** Thoughts a single textbook may be built from. */
   maxChains: number;
+  /** Where the credit ledger lives. A book costs money; the endpoint is paid. */
+  creditsFile: string;
 }
 
 function int(name: string, fallback: number): number {
@@ -53,5 +55,6 @@ export function loadConfig(): Config {
     maxThoughtChars: int("HIGH_THOUGHTS_MAX_CHARS", 4000),
     maxHistoryTurns: int("HIGH_THOUGHTS_MAX_HISTORY", 6),
     maxChains: int("HIGH_THOUGHTS_MAX_CHAINS", 8),
+    creditsFile: process.env.HIGH_THOUGHTS_CREDITS_FILE?.trim() || ".high-thoughts/credits.json",
   };
 }

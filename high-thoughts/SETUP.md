@@ -86,6 +86,32 @@ goods. Budget accordingly.
 
 ---
 
+## Book credits
+
+Books are never free — the endpoint that makes one requires a credit, checked
+server-side before anything reaches the model. Nothing the phone sends can
+bypass it.
+
+```bash
+npm run credits -- new 3        # issue a token worth 3 books
+npm run credits -- add <token> 5
+npm run credits -- check <token>
+```
+
+Paste the token into the app under **Library → I have a code**. Tokens are
+stored as hashes, so a leaked ledger yields nothing usable. A book that fails
+refunds its credit automatically.
+
+Thoughts, modes and the brief all stay free — the brief is the screen that sells
+the book, so it must not sit behind the wall.
+
+**Wiring real payments** is the next step and needs two things this repo cannot
+supply: your Stripe keys, and a public HTTPS URL for the webhook. The webhook
+handler calls `store.grant(token, n)` — the same function the CLI uses — and
+nothing else changes.
+
+---
+
 ## Seeing it without a key
 
 ```bash

@@ -1,4 +1,11 @@
 import { extractSnippet, extractTitle, renderMarkdown } from "./markdown.js";
+import {
+  DEFAULT_OFFER_STATE,
+  offerReason,
+  recordDismissal,
+  recordOffer,
+  shouldOffer,
+} from "./offer.js";
 import * as store from "./store.js";
 
 const $ = (id) => document.getElementById(id);
@@ -48,8 +55,33 @@ const el = {
   selectBook: $("select-book"),
   selectCancel: $("select-cancel"),
   books: $("books"),
-  booksSection: $("books-section"),
+  libraryCount: $("library-count"),
+  libraryEmpty: $("library-empty"),
+  offerVeil: $("offer-veil"),
+  offerReason: $("offer-reason"),
+  offerTitle: $("offer-title"),
+  offerGo: $("offer-go"),
+  offerNo: $("offer-no"),
 };
+
+const OFFER_KEY = "high-thoughts/offer/v1";
+
+function loadOfferState() {
+  try {
+    return { ...DEFAULT_OFFER_STATE, ...JSON.parse(localStorage.getItem(OFFER_KEY) ?? "{}") };
+  } catch {
+    return { ...DEFAULT_OFFER_STATE };
+  }
+}
+
+function saveOfferState(next) {
+  state.offer = next;
+  try {
+    localStorage.setItem(OFFER_KEY, JSON.stringify(next));
+  } catch {
+    // Nothing to do; the worst case is being asked once more than intended.
+  }
+}
 
 const MODE_KEY = "high-thoughts/mode";
 
@@ -78,6 +110,8 @@ const state = {
   /** Log multi-select. */
   selecting: false,
   selected: new Set(),
+  /** How often we have interrupted, and about what. */
+  offer: null,
 };
 
 /* ── Screens ────────────────────────────────────────────────────────────── */
@@ -93,6 +127,7 @@ function show(name, { push = true } = {}) {
     tab.classList.toggle("active", tab.dataset.goto === name);
   }
   if (name === "log") renderLog();
+  if (name === "library") renderLibrary();
   window.scrollTo(0, 0);
 
   if (push && location.hash !== `#${name}`) history.pushState({ name }, "", `#${name}`);
@@ -522,6 +557,9 @@ function finish(thought, modeId, answer) {
   el.answer.innerHTML = renderMarkdown(answer, { markable: true });
   el.markHint.hidden = false;
   renderAgain();
+
+  // After the answer has landed, never during it.
+  if (updated) maybeOffer(updated);
 }
 
 /** Parse the SSE body into JSON events, frame by frame. */
@@ -556,6 +594,51 @@ async function* readEvents(body, signal) {
   } finally {
     reader.cancel().catch(() => {});
   }
+}
+
+/* ── The offer ──────────────────────────────────────────────────────────── */
+
+el.offerGo.addEventListener("click", () => {
+  closeOffer();
+  if (state.current) requestBrief([state.current]);
+});
+
+el.offerNo.addEventListener("click", () => {
+  saveOfferState(recordDismissal(state.offer));
+  closeOffer();
+});
+
+// Tapping the dark surround is a dismissal like any other — but a tap inside
+// the card must not close it.
+el.offerVeil.addEventListener("click", (event) => {
+  if (event.target === el.offerVeil) el.offerNo.click();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !el.offerVeil.hidden) el.offerNo.click();
+});
+
+/**
+ * Offer the library, if this is a moment where the offer is true.
+ *
+ * Called only after an answer has finished — never mid-stream, and never on a
+ * first pass. `shouldOffer` owns every rule about when to stay quiet; this
+ * function only renders the result.
+ */
+function maybeOffer(thought) {
+  const hasBook = store.listBooks().some((book) => book.thoughtId === thought.id);
+  if (!shouldOffer({ ...thought, hasBook }, state.offer)) return;
+
+  el.offerReason.textContent = offerReason(thought);
+  el.offerTitle.textContent =
+    store.listBooks().length > 0 ? "Add this to your Journey" : "Start your Thought Journey";
+
+  el.offerVeil.hidden = false;
+  saveOfferState(recordOffer(state.offer, thought.id));
+}
+
+function closeOffer() {
+  el.offerVeil.hidden = true;
 }
 
 /* ── The brief ──────────────────────────────────────────────────────────── */
@@ -695,6 +778,7 @@ async function startTextbook(brief) {
 
     const book = store.saveBook({
       id: data.id,
+      thoughtId: state.briefChains[0]?.id ?? null,
       title: brief.title,
       building: brief.building,
       text: "",
@@ -750,6 +834,7 @@ async function followTextbook(book) {
   const save = (status) => {
     const saved = store.saveBook({ ...book, text, sources, status });
     if (state.book?.id === book.id) state.book = saved;
+    if (state.screen === "library") renderLibrary();
     return saved;
   };
 
@@ -882,9 +967,16 @@ function toggleSelected(id, button) {
     count === 0 ? "Make a textbook" : `Make a textbook from ${count}`;
 }
 
-function renderBooks() {
+function renderLibrary() {
   const books = store.listBooks();
-  el.booksSection.hidden = books.length === 0;
+  const done = books.filter((book) => book.status === "done").length;
+
+  el.libraryEmpty.hidden = books.length > 0;
+  el.libraryCount.textContent =
+    books.length === 0
+      ? ""
+      : `${books.length} ${books.length === 1 ? "book" : "books"}${done < books.length ? ` · ${books.length - done} still writing` : ""}`;
+
   el.books.replaceChildren();
 
   for (const book of books) {
@@ -916,7 +1008,6 @@ function renderBooks() {
 }
 
 function renderLog() {
-  renderBooks();
   const thoughts = store.list();
 
   el.logEmpty.hidden = thoughts.length > 0;
@@ -976,6 +1067,7 @@ function renderLog() {
 
 /* ── Boot ───────────────────────────────────────────────────────────────── */
 
+state.offer = loadOfferState();
 renderModes();
 loadModes();
 updateCounter();

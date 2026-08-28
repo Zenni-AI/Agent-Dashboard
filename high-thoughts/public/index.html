@@ -138,13 +138,29 @@
 
     <ul class="log" id="log"></ul>
 
-    <div id="books-section" hidden>
-      <h2 class="section-head">Your textbooks</h2>
-      <ul class="log books" id="books"></ul>
-    </div>
     <p class="empty" id="log-empty" hidden>
       Nothing yet.<br />Everything you catch is stored on this phone only — never sent anywhere but the model, never kept on the server.
     </p>
+  </section>
+
+  <!-- ── The Thought Journey ───────────────────────────────────────────── -->
+  <section class="screen" id="screen-library" data-screen="library" hidden>
+    <header class="masthead small">
+      <h1>Thought Journey</h1>
+      <p class="tagline" id="library-count"></p>
+    </header>
+
+    <div class="shelf-empty" id="library-empty" hidden>
+      <div class="shelf-ghosts" aria-hidden="true"><span></span><span></span><span></span></div>
+      <p class="shelf-lead">Nothing on the shelf yet.</p>
+      <p class="shelf-sub">
+        Every idea you take seriously enough to research becomes a book here —
+        what you decided, what's real, what it would take, properly sourced.
+      </p>
+      <p class="shelf-sub dim">The ones you put money behind are the ones you actually try.</p>
+    </div>
+
+    <ul class="log books" id="books"></ul>
   </section>
 
 </main>
@@ -152,7 +168,36 @@
 <nav class="tabs" id="tabs">
   <button type="button" data-goto="catch" class="active">Catch</button>
   <button type="button" data-goto="log">Log</button>
+  <button type="button" data-goto="library">Journey</button>
 </nav>
+
+<!-- ── The offer ─────────────────────────────────────────────────────────── -->
+<div class="modal-veil" id="offer-veil" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="offer-title">
+    <div class="modal-scroll">
+    <div class="shelf-ghosts small" aria-hidden="true"><span></span><span></span><span></span></div>
+
+    <p class="offer-reason" id="offer-reason"></p>
+    <h2 class="offer-title" id="offer-title">Start your Thought Journey</h2>
+
+    <p class="offer-body">
+      A real book on this one — what you've decided, researched properly,
+      every claim sourced. Yours to keep, on a shelf that grows.
+    </p>
+
+    <p class="offer-cost">
+      Thinking here is free. Books aren't — real research costs real money.
+      <strong>Which is the point. The ideas you'll put money behind are the ideas you'll actually try.</strong>
+    </p>
+
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="go" id="offer-go">Build it</button>
+      <button type="button" class="brief-fix" id="offer-no">Not this one</button>
+    </div>
+  </div>
+</div>
 
 <script type="module" src="/app.js"></script>
 </body>

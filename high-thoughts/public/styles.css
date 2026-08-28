@@ -453,6 +453,7 @@ textarea::placeholder { color: var(--ink-faint); }
 
 .tabs button {
   flex: 1;
+  min-width: 0;
   border: 0;
   background: none;
   color: var(--ink-faint);
@@ -766,3 +767,173 @@ textarea::placeholder { color: var(--ink-faint); }
 }
 
 .scroll-x table { margin-bottom: 0; }
+
+/* ── Library ──────────────────────────────────────────────────────────────
+ *
+ * The shelf is the thing being sold, so it gets its own tab and it is visible
+ * from day one. An empty shelf with three ghost spines on it does more selling
+ * than any amount of copy — you can see the gap where your books go.
+ */
+
+.shelf-empty { margin-top: 40px; text-align: center; }
+
+.shelf-ghosts {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 9px;
+  height: 92px;
+  margin-bottom: 26px;
+}
+
+.shelf-ghosts span {
+  width: 26px;
+  border-radius: 3px;
+  border: 1px dashed var(--line);
+  background: linear-gradient(180deg, rgba(180, 140, 255, 0.06), transparent);
+}
+
+.shelf-ghosts span:nth-child(1) { height: 74px; }
+.shelf-ghosts span:nth-child(2) { height: 92px; }
+.shelf-ghosts span:nth-child(3) { height: 66px; }
+
+.shelf-ghosts.small { height: 34px; margin-bottom: 13px; }
+.shelf-ghosts.small span { width: 15px; }
+.shelf-ghosts.small span:nth-child(1) { height: 27px; }
+.shelf-ghosts.small span:nth-child(2) { height: 34px; }
+.shelf-ghosts.small span:nth-child(3) { height: 24px; }
+
+.shelf-lead {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.shelf-sub {
+  margin: 0 auto 12px;
+  max-width: 330px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-faint);
+}
+
+.shelf-sub.dim { color: var(--glow); font-size: 13px; }
+
+/* ── The offer ────────────────────────────────────────────────────────── */
+
+.modal-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(6, 5, 10, 0.78);
+  backdrop-filter: blur(6px);
+  animation: veil-in 0.2s ease both;
+}
+
+.modal-veil[hidden] { display: none; }
+
+@keyframes veil-in { from { opacity: 0; } to { opacity: 1; } }
+
+/*
+ * The actions are pinned and only the copy scrolls. A paywall whose dismiss
+ * button is below the fold reads as a trap, and on a short phone that is
+ * exactly what a single scrolling column produces.
+ */
+.modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 400px;
+  max-height: 88dvh;
+  padding: 21px 19px 17px;
+  border-radius: 20px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--bg-raised), var(--bg-raised)) padding-box,
+    linear-gradient(150deg, var(--glow), var(--glow-2)) border-box;
+  animation: modal-in 0.26s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+}
+
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+.modal-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.modal-actions {
+  position: relative;
+  flex: none;
+  padding-top: 14px;
+}
+
+/* On a short phone the copy scrolls under the buttons. A hard cut mid-sentence
+ * reads as a bug; a fade reads as "there is more above". */
+.modal-actions::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 26px;
+  pointer-events: none;
+  background: linear-gradient(transparent, var(--bg-raised));
+}
+
+.offer-reason {
+  margin: 0 0 7px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--glow-2);
+}
+
+.offer-title {
+  margin: 0 0 11px;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.16;
+  letter-spacing: -0.01em;
+}
+
+.offer-body {
+  margin: 0 0 13px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink-dim);
+}
+
+.offer-cost {
+  margin: 0 0 16px;
+  padding: 11px 13px;
+  border-radius: 12px;
+  background: rgba(180, 140, 255, 0.08);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+}
+
+.offer-cost strong {
+  display: block;
+  margin-top: 7px;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.modal .go { margin-bottom: 8px; padding: 15px; }
+.modal .brief-fix { width: 100%; padding: 11px; }
+
+/* A book on the shelf reads as an object, not a list row. */
+.books li button {
+  border-left: 3px solid var(--glow);
+  padding-left: 14px;
+}

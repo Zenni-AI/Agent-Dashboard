@@ -120,10 +120,17 @@ export async function* writeTextbook(options: TextbookOptions): AsyncGenerator<S
       return;
     }
 
+    console.log(
+      `textbook done: ${final.usage.input_tokens} in, ${final.usage.output_tokens} out, ` +
+        `${seen.size} sources`,
+    );
+
     yield {
       type: "done",
       stopReason: final.stop_reason,
       outputTokens: final.usage.output_tokens,
+      inputTokens: final.usage.input_tokens,
+      cachedTokens: final.usage.cache_read_input_tokens ?? 0,
     };
   } catch (error) {
     yield { type: "error", ...describeFailure(error) };

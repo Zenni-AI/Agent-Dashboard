@@ -58,5 +58,11 @@ export type StreamEvent =
   | { type: "text"; text: string }
   /** A source the textbook writer consulted, surfaced as it is read. */
   | { type: "source"; title: string; url: string }
-  | { type: "done"; stopReason: string | null; outputTokens: number }
+  | {
+      type: "done";
+      stopReason: string | null;
+      outputTokens: number;
+      inputTokens: number;
+      cachedTokens: number;
+    }
   | { type: "error"; message: string; retryable: boolean };

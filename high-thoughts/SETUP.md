@@ -55,14 +55,20 @@ Any Node host — Fly, Railway, Render, a VPS. It's one process, no database.
 
 Rough, per press, at Opus 5 rates ($5/$25 per MTok):
 
-| Action | Ballpark |
+| Action | Measured |
 | --- | --- |
-| A thought developed (Riff, low effort) | fractions of a cent |
-| A thought developed (Sober/Deep, high effort) | ~1–3¢ |
-| Reading the log into a brief | ~1–2¢ |
-| A textbook (high effort + web search) | well under $1 |
+| A thought developed (Riff, low effort) | ~$0.02 |
+| A thought developed (Sober/Deep, high effort) | ~$0.03 |
+| Reading the log into a brief | ~$0.04 |
+| A textbook (high effort + web search, ~90 sources) | **$1–2** |
 
-The textbook is the only expensive one, and it's the one you charge for. Watch real numbers before you set prices — these are estimates, not measurements.
+The textbook is the only expensive one, and it's the one you charge for. The
+server logs `textbook done: N in, N out, N sources` for every book — price from
+your own logs, not from this table.
+
+A book runs 20k+ output tokens because it thinks hard and reads dozens of
+sources. That is the product working, but it means a $9 book has real cost of
+goods. Budget accordingly.
 
 ---
 

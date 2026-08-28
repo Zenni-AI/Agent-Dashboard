@@ -82,6 +82,8 @@ export async function* developThought(options: DevelopOptions): AsyncGenerator<S
       type: "done",
       stopReason: final.stop_reason,
       outputTokens: final.usage.output_tokens,
+      inputTokens: final.usage.input_tokens,
+      cachedTokens: final.usage.cache_read_input_tokens ?? 0,
     };
   } catch (error) {
     yield { type: "error", ...describeFailure(error) };

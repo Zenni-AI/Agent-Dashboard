@@ -4,18 +4,16 @@ Everything you need to get it on your phone, in order.
 
 ---
 
-## APIs you need
+## The API you need
 
-| | Needed? | Cost | Where |
-| --- | --- | --- | --- |
-| **Anthropic API key** | **Yes — the only one** | Pay per use | console.anthropic.com → API keys |
-| YouTube Data API | Not yet | Free (quota-limited) | Only if you build the video layer |
-| Course affiliates | Not yet | — | Only if you add the learning layer |
-| Payments (Stripe) | Not yet | — | Only when you charge for books |
+**One: an Anthropic API key.** console.anthropic.com → API keys.
 
-**One key. That's it.** No database, no auth provider, no storage bucket — thoughts live in the browser, and the server keeps nothing.
+That is the entire list. No database, no auth provider, no storage bucket, no
+YouTube key, no affiliate account. Thoughts live in the browser; the server
+stores nothing and talks to exactly one service.
 
----
+The book is the product, so there is nothing to send people out to — the
+resources live inside the book, found and linked by the writer as it works.
 
 ## 1. Run it
 
@@ -85,7 +83,7 @@ The textbook is the only expensive one, and it's the one you charge for. Watch r
 ## Checking it works
 
 ```bash
-npm test          # 124 tests
+npm test          # 128 tests
 npm run typecheck
 curl localhost:8080/api/health
 ```

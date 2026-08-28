@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BriefSchema, renderChains } from "../src/brief.js";
-import { CHAPTERS, renderBrief } from "../src/textbook.js";
+import { CHAPTERS, renderBrief, SYSTEM as TEXTBOOK_SYSTEM } from "../src/textbook.js";
 import {
   normaliseProfile,
   validateBrief,
@@ -183,5 +183,29 @@ describe("normaliseProfile", () => {
     const profile = normaliseProfile({ subjects: ["bees"], favouriteMode: "deep" });
     expect(profile?.favouriteMode).toBe("deep");
     expect(profile?.subjects).toEqual(["bees"]);
+  });
+});
+
+describe("the textbook system prompt", () => {
+  it("makes the prerequisites carry real, findable resources", () => {
+    // The book IS the course, so it has to say where to learn each thing
+    // rather than sending the reader off to work that out themselves.
+    expect(TEXTBOOK_SYSTEM).toMatch(/every item names where to actually go and learn it/);
+    expect(TEXTBOOK_SYSTEM).toMatch(/real title and a working link/i);
+    expect(TEXTBOOK_SYSTEM).toMatch(/"Learn some chemistry" is a failure/);
+  });
+
+  it("ranks resources on what teaches fastest, not on what costs money", () => {
+    expect(TEXTBOOK_SYSTEM).toMatch(/Free resources are better than paid ones when they are better/);
+    expect(TEXTBOOK_SYSTEM).toMatch(/never on what costs money/);
+  });
+
+  it("keeps the prerequisites doing the safety job too", () => {
+    expect(TEXTBOOK_SYSTEM).toMatch(/safety architecture/);
+    expect(TEXTBOOK_SYSTEM).toMatch(/Do not refuse the topic and do not water it down/);
+  });
+
+  it("still forbids inventing sources", () => {
+    expect(TEXTBOOK_SYSTEM).toMatch(/Never invent a figure, a supplier, a part number/);
   });
 });

@@ -143,3 +143,26 @@ describe("what a leaked ledger is worth to an attacker", () => {
     expect(await store.redeem(`ht_${hash.slice(0, 48)}`)).toEqual({ ok: false, reason: "unknown" });
   });
 });
+
+describe("credits granted by another process", () => {
+  it("are seen by a running store without a restart", async () => {
+    // The CLI now, a payment webhook later: both write the file from outside.
+    const running = new CreditStore(file);
+    const token = issueToken();
+
+    const other = new CreditStore(file);
+    await other.grant(token, 2);
+
+    expect(running.balance(token)).toBe(2);
+    expect(running.known(token)).toBe(true);
+    expect(await running.redeem(token)).toEqual({ ok: true, remaining: 1 });
+  });
+
+  it("does not lose its own spend when it reloads", async () => {
+    const token = issueToken();
+    await store.grant(token, 3);
+    await store.redeem(token);
+    expect(store.balance(token)).toBe(2);
+    expect(new CreditStore(file).balance(token)).toBe(2);
+  });
+});

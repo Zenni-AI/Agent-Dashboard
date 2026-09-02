@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
 /**
@@ -49,6 +49,8 @@ export class CreditStore {
   private accounts: Record<string, Account> = {};
   /** Serialises writes; within one process this is what keeps spends atomic. */
   private queue: Promise<void> = Promise.resolve();
+  /** mtime of the copy in memory, so an outside write can be noticed. */
+  private loadedAt = 0;
 
   constructor(private readonly file: string) {
     this.load();
@@ -56,13 +58,30 @@ export class CreditStore {
 
   private load(): void {
     try {
-      const raw = readFileSync(this.file, "utf8");
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === "object") this.accounts = parsed.accounts ?? {};
+      this.loadedAt = statSync(this.file).mtimeMs;
+      const parsed = JSON.parse(readFileSync(this.file, "utf8"));
+      this.accounts = parsed && typeof parsed === "object" ? (parsed.accounts ?? {}) : {};
     } catch {
       // No ledger yet, or an unreadable one. Starting empty is correct: the
       // failure mode is "nobody can make a book", never "everybody can".
       this.accounts = {};
+      this.loadedAt = 0;
+    }
+  }
+
+  /**
+   * Pick up credits granted by something else since we last looked.
+   *
+   * The ledger is a file, and the things that top it up — the CLI now, a
+   * payment webhook later — are separate processes. Without this, a running
+   * server never sees a credit somebody just paid for, and the person is told
+   * to buy a book they already own.
+   */
+  private reloadIfChanged(): void {
+    try {
+      if (statSync(this.file).mtimeMs !== this.loadedAt) this.load();
+    } catch {
+      // File not there yet; whatever is in memory is as good as it gets.
     }
   }
 
@@ -73,6 +92,12 @@ export class CreditStore {
     const temp = `${this.file}.tmp`;
     writeFileSync(temp, JSON.stringify({ accounts: this.accounts }, null, 2), { mode: 0o600 });
     renameSync(temp, this.file);
+    // Our own write must not read back as somebody else's.
+    try {
+      this.loadedAt = statSync(this.file).mtimeMs;
+    } catch {
+      this.loadedAt = 0;
+    }
   }
 
   private write<T>(mutate: () => T): Promise<T> {
@@ -96,6 +121,7 @@ export class CreditStore {
     if (!looksLikeToken(token)) return { ok: false, reason: "missing" };
 
     return this.write(() => {
+      this.reloadIfChanged();
       const account = this.accounts[hashToken(token)];
       if (!account) return { ok: false, reason: "unknown" } as const;
       if (account.credits < 1) return { ok: false, reason: "empty" } as const;
@@ -128,6 +154,7 @@ export class CreditStore {
     if (!Number.isInteger(credits) || credits < 1) throw new Error("Credits must be a positive integer.");
 
     return this.write(() => {
+      this.reloadIfChanged();
       const key = hashToken(token);
       const account = (this.accounts[key] ??= { credits: 0, spent: 0, createdAt: Date.now() });
       account.credits += credits;
@@ -138,11 +165,14 @@ export class CreditStore {
 
   balance(token: unknown): number {
     if (!looksLikeToken(token)) return 0;
+    this.reloadIfChanged();
     return this.accounts[hashToken(token)]?.credits ?? 0;
   }
 
   known(token: unknown): boolean {
-    return looksLikeToken(token) && hashToken(token) in this.accounts;
+    if (!looksLikeToken(token)) return false;
+    this.reloadIfChanged();
+    return hashToken(token) in this.accounts;
   }
 
   get accountCount(): number {

@@ -1,4 +1,4 @@
-# Pristine Clean Power Washing — website
+# Pristine Home Services — website
 
 A plain static website. No build step, no framework, no npm install. Every page is a `.html`
 file you can open in a text editor and change.
@@ -132,22 +132,32 @@ messages inside `assets/js/site.js`.
 
 ## Your logo
 
-`assets/img/logo.svg` (dark version, for the white header) and `assets/img/logo-light.svg`
-(white version, for the dark footer) are clean stand-ins built from your company name and a
-water-drop mark.
+The header and footer show your logo as two pieces:
 
-**To use your real logo:** save it over those two files keeping the same names. SVG is best;
-a transparent PNG works too — if you use PNG, change the `src` in the header and footer of
-each HTML page from `logo.svg` to `logo.png`:
+- **The house mark** — `assets/img/logo-mark.svg` (for light backgrounds) and
+  `assets/img/logo-mark-light.svg` (white version, for the dark footer). These are hand-traced
+  vector rebuilds of your logo, so they stay razor sharp at any size.
+- **The "PRISTINE / HOME SERVICES" wordmark** — set in live text using the Outfit webfont,
+  not baked into an image. That keeps it crisp on every screen and lets it resize on mobile.
+
+**To use your original logo file instead**, drop it in as `assets/img/logo.png` and run:
 
 ```bash
 cd site
-grep -rl "logo.svg" . | xargs sed -i 's/logo\.svg/logo.png/g'
-grep -rl "logo-light.svg" . | xargs sed -i 's/logo-light\.svg/logo-light.png/g'
+python3 - <<'EOF'
+import glob, re
+for f in glob.glob("*.html") + glob.glob("services/*.html"):
+    s = open(f).read()
+    s = re.sub(r'<img class="brand__mark"[^>]*>\s*<span class="brand__text">.*?</span>\s*</span>',
+               '<img class="brand__mark" src="REL/assets/img/logo.png" alt="Pristine Home Services">',
+               s, flags=re.S)
+    s = s.replace('src="REL/', 'src="../' if f.startswith("services/") else 'src="')
+    open(f, "w").write(s)
+EOF
 ```
 
-The header sizes the logo to 52px tall and scales the width automatically, so any reasonable
-aspect ratio fits.
+Then bump `.brand__mark { height: 44px }` in `site.css` to suit your file's proportions —
+a logo with the wordmark built in usually wants 56-64px.
 
 ## Your photos
 

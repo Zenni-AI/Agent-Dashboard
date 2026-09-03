@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 150" role="img" aria-label="Pristine Home Services">
+  <defs>
+    <linearGradient id="phsBlue" x1=".1" y1="0" x2=".5" y2="1">
+      <stop offset="0%" stop-color="#3A9BE0"/>
+      <stop offset="100%" stop-color="#1A6CB4"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Charcoal roof plane, offset up and right. Chimneys sit behind it. -->
+  <rect x="86" y="48" width="10" height="26" fill="#1E2327"/>
+  <rect x="150" y="52" width="12" height="22" fill="#1E2327"/>
+  <path d="M122 30 218 126h-27L122 57 55 126H30Z" fill="#1E2327"/>
+
+  <!-- Blue house frame: silhouette with the interior cut out (even-odd) -->
+  <path fill-rule="evenodd" fill="url(#phsBlue)"
+        d="M108 50 178 120v16H4l34-23Z
+           M108 86 146 124v13H70v-13Z"/>
+
+  <!-- Cross cluster, blue on the white interior -->
+  <path d="M102 95h12v11h11v12h-11v11h-12v-11H91v-12h11Z" fill="#1B7BC6"/>
+  <g stroke="#1B7BC6" stroke-width="4" stroke-linecap="butt">
+    <path d="M81 114v12M75 120h12"/>
+    <path d="M135 114v12M129 120h12"/>
+  </g>
+
+  <!-- Sparkles -->
+  <path d="M198 28q5.5 18.5 24 24-18.5 5.5-24 24-5.5-18.5-24-24 18.5-5.5 24-24Z" fill="#2A8CD8"/>
+  <path d="M170 21q2.5 6.5 9 9-6.5 2.5-9 9-2.5-6.5-9-9 6.5-2.5 9-9Z" fill="#2A8CD8"/>
+</svg>

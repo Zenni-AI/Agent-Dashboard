@@ -65,6 +65,10 @@ During development, `npm run litix -- <args>` runs the CLI straight from source.
 | `auth` | Authorise LITIX to read your own YouTube Analytics. |
 | `quota <videos>` | Estimate Data API quota before spending it. |
 | `cache clear` | Empty the on-disk API cache. |
+| `earn rank` | The Earner: rank every legal income play for your situation and build the stack. No key needed. |
+| `earn plan` | The Earner: the next 24 hours, hour by hour, from Claude. |
+| `earn log` / `earn status` | Record income and see net, rate and the tax reserve. |
+| `earn plays` / `earn screen` | List the catalogue; check an idea against the legal and ethical charter. |
 
 ### Options worth knowing
 
@@ -139,6 +143,36 @@ Plays you cannot resource today are marked with their blockers rather than hidde
 
 ---
 
+## The Earner
+
+A second agent lives alongside the channel engine, for a different person: someone in New Jersey who needs real income fast and will only do it legally.
+
+```bash
+# What should I do, today, with what I have? No API key needed.
+npx litix earn rank --days 10 --hours 6 --cash 50 --has all --skills teaching
+
+# The next 24 hours, hour by hour, from Claude. Needs ANTHROPIC_API_KEY.
+npx litix earn plan --days 10 --hours 6 --cash 50 --has age-18,smartphone,internet,car,drivers-license,can-leave-home,physical-work,bank-account,work-authorization \
+  --propose "sell my old bike" "sports betting with a system" --out today.md
+
+# Record the money as it arrives; the next brief re-plans from it.
+npx litix earn log sell-belongings 140 --hours 1.5 --note "PS5 and the bike"
+npx litix earn status
+
+# Check an idea before spending a minute on it.
+npx litix earn screen resell concert tickets above face value
+```
+
+**What it is.** A catalogue of twenty-two ways a person in New Jersey can turn time, skills and belongings into reported income, each with its realistic hourly band after costs, the days it takes to pay, the hours it can absorb, what it needs up front, and every federal, state, municipal and platform obligation attached, with where to verify each one. A deterministic ranker scores each play for *this* person: speed to the first dollar weighted by how soon the money is needed, dollars realistically earnable inside that window, and fit with stated skills. It then builds the stack, the combination that fills the available hours by value per hour of the window, so the same-day play keeps its eight hours and the big-capacity plays fill the rest.
+
+**What the agent does.** Claude reads the ranked stack through tools and turns it into the next 24 hours in order, with a time on each line, the legal steps sequenced by when they unblock money, the one number to check tomorrow, and the result that means change course. It also screens anything the person proposes against the charter. Every tool is read-only: the agent cannot log income, spend money, sign up for anything or contact anyone. The person does those things; the agent says which, and when.
+
+**What it will never recommend.** Fraud or deception of any kind. Gambling. Multi-level marketing. Work that needs a licence the person does not hold. Hiding income or being paid off the books. Moving money for strangers or lending. Harvesting personal data or selling accounts. Writing students' work for them. Pirated or trademark-infringing goods. Anything that endangers anyone. Anything that starts with a loan. The full list, with reasons, is printed at the end of every plan, and `screenActivity` enforces it before the model ever sees a proposal.
+
+**Honest limits.** The hourly bands are realistic ranges, not promises; the first week's number depends on the person showing up. The compliance notes are what a careful person would verify, not legal advice, and New Jersey municipalities differ; the plan names the clerk, the Division of Taxation and the Division of Consumer Affairs because those are where the answer lives. The agent plans and tracks; it does not earn. Nothing here can.
+
+---
+
 ## Reference operators
 
 `data/references.json` holds the accounts LITIX benchmarks against, keyed by niche, each with the specific mechanic it proves — not the personality, the transferable move.
@@ -185,7 +219,7 @@ Everything from ingestion through ranking is deterministic and unit-tested. Only
 ## Development
 
 ```bash
-npm test          # 99 tests over the deterministic math
+npm test          # deterministic math, catalogue integrity, the charter and the ledger
 npm run typecheck
 npm run build
 ```

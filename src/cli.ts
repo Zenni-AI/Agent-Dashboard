@@ -8,6 +8,20 @@ import { rankPlays } from "./monetize/plays.js";
 import { ingest, run, type RunOptions } from "./pipeline.js";
 import { renderMarkdownReport } from "./report/markdown.js";
 import { DiskCache } from "./store/cache.js";
+import { runEarnAgent } from "./earn/agent.js";
+import { findPlay, PLAYS } from "./earn/catalog.js";
+import { screenActivity } from "./earn/guardrails.js";
+import {
+  addEntry,
+  DEFAULT_LEDGER_PATH,
+  isoDate,
+  loadLedger,
+  saveLedger,
+  summarizeLedger,
+} from "./earn/ledger.js";
+import { buildEarnPlan, REQUIREMENT_LABELS } from "./earn/rank.js";
+import { renderEarnPlan } from "./earn/report.js";
+import type { PlayRequirement, Situation } from "./earn/types.js";
 import type { LitixReport, OperatorProfile } from "./types.js";
 import { formatCount, formatUsd } from "./util/format.js";
 import { log, setLogLevel } from "./util/logger.js";
@@ -248,6 +262,224 @@ program
     const config = loadConfig();
     await DiskCache.fromHours(config.LITIX_CACHE_DIR, config.LITIX_CACHE_TTL_HOURS).clear();
     console.log(`\n  Cleared ${config.LITIX_CACHE_DIR}.\n`);
+  });
+
+// --- earn -----------------------------------------------------------------
+//
+// The Earner: one goal, legal income in New Jersey as fast as possible. The
+// ranking is deterministic and needs no key; the daily brief asks Claude.
+
+const earn = program
+  .command("earn")
+  .description("The Earner: the fastest legal, ethical route to income in New Jersey, given what you have.");
+
+const REQUIREMENT_IDS = Object.keys(REQUIREMENT_LABELS) as PlayRequirement[];
+
+/** Inputs that describe the person. Shared by `earn rank` and `earn plan`. */
+function withSituationOptions(command: Command): Command {
+  return command
+    .option("--days <count>", "days until you need the money", "14")
+    .option("--hours <count>", "hours per day you can work", "6")
+    .option("--cash <usd>", "cash you can spend on getting started", "0")
+    .option("--target <usd>", "dollar target inside the window")
+    .option("--skills <list>", "comma-separated skills you have")
+    .option(
+      "--has <list>",
+      `comma-separated things you have: ${REQUIREMENT_IDS.join(", ")}; or 'all'`,
+      "age-18,smartphone,internet,bank-account,can-leave-home,work-authorization",
+    )
+    .option("--exclude <list>", "comma-separated playIds you refuse to do")
+    .option("--town <name>", "your municipality, for local-ordinance reminders")
+    .option("--notes <text>", "anything else, in your words")
+    .option("--ledger <path>", "where the income ledger lives", DEFAULT_LEDGER_PATH)
+    .addOption(new Option("--json", "emit JSON instead of markdown"))
+    .option("-o, --out <file>", "write the plan to a file");
+}
+
+function parseList(value: unknown): string[] {
+  return typeof value === "string" ? value.split(",").map((s) => s.trim()).filter(Boolean) : [];
+}
+
+function parseSituation(opts: Record<string, unknown>): Situation {
+  const hasRaw = parseList(opts.has);
+  const has = hasRaw.includes("all") ? REQUIREMENT_IDS : (hasRaw as PlayRequirement[]);
+  const unknown = has.filter((h) => !REQUIREMENT_IDS.includes(h));
+  if (unknown.length > 0) {
+    throw new Error(`Unknown --has entries: ${unknown.join(", ")}. Valid: ${REQUIREMENT_IDS.join(", ")}.`);
+  }
+  const exclude = parseList(opts.exclude);
+  const unknownPlays = exclude.filter((id) => !findPlay(id));
+  if (unknownPlays.length > 0) {
+    throw new Error(`Unknown --exclude playIds: ${unknownPlays.join(", ")}. See 'litix earn plays'.`);
+  }
+  const target = opts.target === undefined ? undefined : Number(opts.target);
+  return {
+    urgencyDays: Math.max(1, Number(opts.days ?? 14) || 14),
+    hoursPerDay: Math.max(0, Number(opts.hours ?? 6) || 0),
+    cashOnHandUsd: Math.max(0, Number(opts.cash ?? 0) || 0),
+    ...(target !== undefined && Number.isFinite(target) ? { targetUsd: target } : {}),
+    skills: parseList(opts.skills),
+    has,
+    ...(exclude.length > 0 ? { excludePlayIds: exclude } : {}),
+    ...(typeof opts.town === "string" ? { town: opts.town } : {}),
+    ...(typeof opts.notes === "string" ? { notes: opts.notes } : {}),
+  };
+}
+
+withSituationOptions(
+  earn
+    .command("rank")
+    .description("Rank every legal play for your situation and build the stack. Deterministic; no API key needed."),
+).action(async (opts: Record<string, unknown>) => {
+  const situation = parseSituation(opts);
+  const plan = buildEarnPlan(situation);
+  const ledger = summarizeLedger(await loadLedger(String(opts.ledger)));
+
+  if (opts.json) {
+    await emitRaw(JSON.stringify({ plan, ledger }, null, 2), opts);
+    return;
+  }
+  if (opts.out) {
+    await emitRaw(renderEarnPlan(plan, { ledger }), opts);
+    return;
+  }
+
+  console.log(`\n  The Earner — ${situation.urgencyDays}-day window, ${situation.hoursPerDay}h/day, ${formatUsd(situation.cashOnHandUsd)} to start\n`);
+  if (plan.stack.length === 0) {
+    console.log("  Nothing available with what you listed in --has. Run with --has all to see what unlocks.\n");
+  } else {
+    console.log(`  First 7 days   ${formatUsd(plan.projection.firstWeekUsd.low)} – ${formatUsd(plan.projection.firstWeekUsd.high)}`);
+    console.log(`  In window      ${formatUsd(plan.projection.windowUsd.low)} – ${formatUsd(plan.projection.windowUsd.high)}`);
+    if (situation.targetUsd !== undefined) {
+      console.log(`  Target         ${formatUsd(situation.targetUsd)} — ${plan.projection.targetReachable ? "reachable on the middle estimate" : "NOT reachable on the middle estimate"}`);
+    }
+    console.log(`\n  The stack:\n`);
+    plan.stack.forEach((item, index) => {
+      console.log(
+        `  ${String(index + 1).padStart(2)}. ${item.play.name.padEnd(46)} ${String(item.allocatedHoursPerWeek).padStart(3)}h/wk   first $ ${item.play.timeToFirstDollarDays === 0 ? "today" : `${item.play.timeToFirstDollarDays}d`.padStart(5)}   7d ${formatUsd(item.expectedUsdFirstWeek.low).padStart(6)}–${formatUsd(item.expectedUsdFirstWeek.high).padEnd(6)}`,
+      );
+    });
+  }
+  const blocked = plan.ranked.filter((r) => r.blockers.length > 0);
+  if (blocked.length > 0) {
+    console.log(`\n  Blocked (${blocked.length}):\n`);
+    for (const item of blocked.slice(0, 8)) {
+      console.log(`   · ${item.play.name}: ${item.blockers.join(" ")}`);
+    }
+  }
+  console.log(`\n  Full plan with the legal checklist: add --out plan.md\n`);
+});
+
+withSituationOptions(
+  earn
+    .command("plan")
+    .description("Today's brief: the next 24 hours, hour by hour, from the ranked stack. Needs ANTHROPIC_API_KEY."),
+)
+  .option("--propose <text...>", "things you are thinking of doing; each is screened against the charter")
+  .action(async (opts: Record<string, unknown>) => {
+    const config = loadConfig();
+    const situation = parseSituation(opts);
+    const ledgerPath = String(opts.ledger);
+    const ledger = await loadLedger(ledgerPath);
+    const proposals = Array.isArray(opts.propose) ? (opts.propose as string[]) : [];
+
+    const result = await runEarnAgent({
+      ...(config.ANTHROPIC_API_KEY ? { apiKey: config.ANTHROPIC_API_KEY } : {}),
+      model: config.LITIX_MODEL,
+      situation,
+      ledger,
+      proposals,
+    });
+
+    if (opts.json) {
+      await emitRaw(JSON.stringify(result, null, 2), opts);
+      return;
+    }
+    await emitRaw(
+      renderEarnPlan(result.plan, { brief: result.brief, ledger: summarizeLedger(ledger) }),
+      opts,
+    );
+  });
+
+earn
+  .command("log")
+  .argument("<playId>", "which play earned it; see 'litix earn plays'")
+  .argument("<gross>", "gross dollars received")
+  .option("--hours <count>", "hours it took", "0")
+  .option("--expenses <usd>", "fees, fuel, supplies", "0")
+  .option("--date <yyyy-mm-dd>", "when; defaults to today")
+  .option("--note <text>", "anything worth remembering")
+  .option("--ledger <path>", "where the income ledger lives", DEFAULT_LEDGER_PATH)
+  .description("Record income. The brief re-plans from this, and it is your tax record.")
+  .action(async (playId: string, gross: string, opts: Record<string, unknown>) => {
+    if (!findPlay(playId)) {
+      throw new Error(`Unknown playId "${playId}". See 'litix earn plays'.`);
+    }
+    const path = String(opts.ledger);
+    const ledger = addEntry(await loadLedger(path), {
+      date: typeof opts.date === "string" ? opts.date : isoDate(),
+      playId,
+      grossUsd: Number(gross),
+      hours: Number(opts.hours ?? 0),
+      expensesUsd: Number(opts.expenses ?? 0),
+      ...(typeof opts.note === "string" ? { note: opts.note } : {}),
+    });
+    await saveLedger(ledger, path);
+    const summary = summarizeLedger(ledger);
+    console.log(
+      `\n  Logged ${formatUsd(Number(gross))} from ${playId}. Net so far ${formatUsd(summary.netUsd)} over ${summary.hours}h (${formatUsd(summary.netPerHour)}/h). Set aside ${formatUsd(summary.taxReserveUsd)} for tax.\n`,
+    );
+  });
+
+earn
+  .command("status")
+  .option("--ledger <path>", "where the income ledger lives", DEFAULT_LEDGER_PATH)
+  .addOption(new Option("--json", "emit JSON"))
+  .description("What has been earned so far, per play, with the tax reserve.")
+  .action(async (opts: Record<string, unknown>) => {
+    const ledger = await loadLedger(String(opts.ledger));
+    const summary = summarizeLedger(ledger);
+    if (opts.json) {
+      console.log(JSON.stringify({ ledger, summary }, null, 2));
+      return;
+    }
+    if (summary.daysActive === 0) {
+      console.log(`\n  Nothing logged yet. Record the first dollar with: litix earn log <playId> <gross> --hours <h>\n`);
+      return;
+    }
+    console.log(`\n  Net ${formatUsd(summary.netUsd)} over ${summary.hours}h in ${summary.daysActive} day(s) — ${formatUsd(summary.netPerHour)}/h, ${formatUsd(summary.netPerDay)}/day. Tax reserve ${formatUsd(summary.taxReserveUsd)}.\n`);
+    for (const p of summary.byPlay) {
+      console.log(`  ${p.playId.padEnd(22)} ${formatUsd(p.netUsd).padStart(9)}  ${String(p.hours).padStart(5)}h  ${formatUsd(p.netPerHour).padStart(7)}/h`);
+    }
+    console.log("");
+  });
+
+earn
+  .command("plays")
+  .description("List every play in the catalogue with its id, speed and rate.")
+  .action(() => {
+    console.log("");
+    for (const play of PLAYS) {
+      console.log(
+        `  ${play.id.padEnd(20)} ${play.name.padEnd(48)} first $ ${play.timeToFirstDollarDays === 0 ? "today" : `${play.timeToFirstDollarDays}d`.padStart(5)}   $${play.hourlyUsd.low}–${play.hourlyUsd.high}/h${play.online ? "   online" : ""}`,
+      );
+    }
+    console.log("");
+  });
+
+earn
+  .command("screen")
+  .argument("<activity...>", "what you are thinking of doing, in plain words")
+  .description("Check an idea against the legal and ethical charter before you spend a minute on it.")
+  .action((activity: string[]) => {
+    const result = screenActivity(activity.join(" "));
+    console.log(`\n  ${result.verdict.toUpperCase()}`);
+    for (const m of result.matched) console.log(`   · ${m.label}\n     ${m.why}`);
+    if (result.verdict === "allowed") {
+      console.log("   Nothing in the charter objects. Remember the obligations that attach to every dollar:");
+      for (const o of result.generalObligations.slice(0, 3)) console.log(`   · ${o}`);
+    }
+    console.log("");
   });
 
 async function emitRaw(output: string, opts: Record<string, unknown>): Promise<void> {

@@ -44,3 +44,18 @@ export { rankPlays, pathOfLeastResistance, EFFORT_HOURS } from "./monetize/plays
 // Output
 export { generateAdvice } from "./ai/advisor.js";
 export { renderMarkdownReport } from "./report/markdown.js";
+
+// The Earner — legal income in New Jersey, fastest first
+export * from "./earn/types.js";
+export { PLAYS, findPlay, playsByCategory } from "./earn/catalog.js";
+export {
+  PROHIBITIONS,
+  DECLINED_BY_POLICY,
+  GENERAL_COMPLIANCE,
+  screenActivity,
+  refusalSummary,
+} from "./earn/guardrails.js";
+export { rankIncomePlays, buildEarnPlan, expectedInWindow, REQUIREMENT_LABELS } from "./earn/rank.js";
+export { loadLedger, saveLedger, addEntry, summarizeLedger, DEFAULT_LEDGER_PATH, TAX_RESERVE_RATE } from "./earn/ledger.js";
+export { renderEarnPlan } from "./earn/report.js";
+export { runEarnAgent, EARNER_SYSTEM_PROMPT, DailyBriefSchema, EarnerRefusalError } from "./earn/agent.js";

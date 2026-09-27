@@ -173,7 +173,7 @@ export function build(ctx) {
 
   // ---- materials
   const paint = new THREE.MeshPhysicalMaterial({
-    color: 0xb5101c, metalness: 0.4, roughness: 0.27, clearcoat: 1, clearcoatRoughness: 0.025,
+    color: 0xb5101c, metalness: 0.4, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.025,
     envMap, envMapIntensity: 1.3,
   });
   const glass = new THREE.MeshPhysicalMaterial({
@@ -268,7 +268,7 @@ export function build(ctx) {
   const cabMaps = (() => {
     const W = hi ? 1024 : 512, H = hi ? 512 : 256, SS = 2;
     const cols = [[181, 16, 28], [7, 9, 12], [11, 12, 14]];
-    const rough = [0.30, 0.05, 0.22], metal = [0.42, 0.0, 0.3];
+    const rough = [0.22, 0.05, 0.22], metal = [0.42, 0.0, 0.3];
     const c1 = document.createElement('canvas'), c2 = document.createElement('canvas');
     c1.width = c2.width = W; c1.height = c2.height = H;
     const g1 = c1.getContext('2d'), g2 = c2.getContext('2d');
@@ -503,7 +503,7 @@ export function build(ctx) {
       if (i === 0) continue;
       if (Math.abs(i) === 1) continue;
       const fin = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.07, 0.26), matte);
-      fin.position.set(i * 0.19 + (i > 0 ? 0.04 : -0.04), 0.17, -2.17); fin.rotation.x = -0.22; car.add(fin);
+      fin.position.set(i * 0.19 + (i > 0 ? 0.04 : -0.04), 0.175, -2.17); fin.rotation.x = 0.2; car.add(fin);
     }
     const tipGeo = new THREE.LatheGeometry([new THREE.Vector2(0.036, -0.08), new THREE.Vector2(0.041, 0), new THREE.Vector2(0.044, 0.01), new THREE.Vector2(0.038, 0.012), new THREE.Vector2(0.033, 0.0), new THREE.Vector2(0.033, -0.08)], 28);
     tipGeo.rotateX(-Math.PI / 2);
@@ -528,7 +528,7 @@ export function build(ctx) {
     for (let i = 0; i < pos.count; i++) { if (pos.getZ(i) < 0) pos.setZ(i, pos.getZ(i) * 0.25); }
     hsg.computeVertexNormals();
     const housing = new THREE.Mesh(hsg, paint);
-    housing.scale.set(0.085, 0.048, 0.075);
+    housing.scale.set(0.09, 0.044, 0.065);
     housing.position.set(s * 0.955, 0.93, 0.62); housing.rotation.z = -s * 0.08; housing.castShadow = true;
     car.add(housing);
     const glassM = new THREE.Mesh(new THREE.CircleGeometry(1, 24), chrome);
@@ -816,7 +816,7 @@ export function build(ctx) {
     hoverT += dt;
     const pulse = hover ? 0.5 + 0.5 * Math.sin(hoverT * 5.5 - Math.PI / 2) : 0;
     drlMat.emissiveIntensity = 2.4 + hv * (1.5 + 2.5 * pulse);
-    for (const l of headGlow) l.intensity = 0.25 + hv * (1.5 + 1.5 * pulse);
+    for (const l of headGlow) l.intensity = hv * (1.4 + 1.6 * pulse); // stays in the light list: no shader recompile on hover
     const breathe = 0.5 + 0.5 * Math.sin(t * 1.6);
     charger.userData.ring.emissiveIntensity = 1.6 + 1.6 * breathe;
     charger.userData.led.intensity = 0.2 + 0.3 * breathe;
@@ -930,9 +930,9 @@ function makeWheelGeos(W, hi) {
   const rHub = 0.075, rRim = rr - 0.014, depth = 0.026, hubZ = face - 0.055;
   const faceZ = (r) => hubZ + (face - 0.004 - hubZ) * Math.sqrt(Math.min(1, Math.max(0, (r - rHub) / (rRim - rHub))));
   const spokeGeos = [];
-  for (let k = 0; k < 5; k++) for (const off of [-0.105, 0.105]) {
+  for (let k = 0; k < 5; k++) for (const off of [-0.12, 0.12]) {
     const sh = new THREE.Shape();
-    sh.moveTo(-0.017, rHub - 0.01); sh.lineTo(0.017, rHub - 0.01); sh.lineTo(0.0105, rRim + 0.006); sh.lineTo(-0.0105, rRim + 0.006); sh.closePath();
+    sh.moveTo(-0.023, rHub - 0.01); sh.lineTo(0.023, rHub - 0.01); sh.lineTo(0.015, rRim + 0.006); sh.lineTo(-0.015, rRim + 0.006); sh.closePath();
     const g = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: true, bevelSize: 0.0045, bevelThickness: 0.004, bevelSegments: 2, steps: 1, curveSegments: 2 });
     // subdivide along the length is not needed: bend by moving each vertex
     const q = g.attributes.position;

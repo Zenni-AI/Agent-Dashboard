@@ -150,7 +150,7 @@ export function build(ctx) {
       const cols = [[37, 39, 43], [52, 55, 60], [218, 219, 220], [243, 243, 242], [102, 112, 122], [154, 162, 170], [87, 77, 69], [185, 174, 156]];
       const n = HIGH ? 150000 : 40000, fs = w / 2048;
       for (let i = 0; i < n; i++) {
-        const c = cols[(r() * cols.length) | 0], al = (140 + r() * 115) | 0;
+        const c = cols[(r() * cols.length) | 0], al = (90 + r() * 110) | 0;
         const sx = Math.max(1, Math.round((1 + r() * 3) * fs * 1.4)), sy = Math.max(1, Math.round(sx * (0.4 + r() * 0.6)));
         const x0 = (r() * (w - 4)) | 0, y0 = (r() * (h - 4)) | 0;
         for (let yy = 0; yy < sy; yy++) for (let xx = 0; xx < sx; xx++) {
@@ -176,7 +176,7 @@ export function build(ctx) {
     for (const tx of [0.1, 1.7, -1.9, -0.3]) {
       const faint = tx < 0 ? 0.4 : 1;
       for (let k = 0; k < 26; k++) {
-        g.strokeStyle = `rgba(22,22,24,${(0.03 + r2() * 0.05) * faint})`;
+        g.strokeStyle = `rgba(22,22,24,${(0.008 + r2() * 0.018) * faint})`;
         g.lineWidth = (8 + r2() * 30) * fs;
         const x = FX(tx + (r2() - 0.5) * 0.18);
         g.beginPath(); g.moveTo(x, FZ(0.02)); g.bezierCurveTo(x + (r2() - 0.5) * 30, FZ(-2), x + (r2() - 0.5) * 30, FZ(-4), x + (r2() - 0.5) * 20, FZ(-5.4 + r2())); g.stroke();
@@ -497,12 +497,12 @@ export function build(ctx) {
     foundation: std({ color: 0x86837c, roughness: 0.95, map: walkMap }),
     lawn: std({ map: grassMap, roughness: 0.96, vertexColors: true }),
     darkMetal: std({ color: 0x2c2e31, roughness: 0.45, metalness: 0.7 }),
-    galv: std({ color: 0xa9adb0, roughness: 0.38, metalness: 0.85 }),
+    galv: std({ color: 0xb4b8bb, roughness: 0.38, metalness: 0.6 }),
     black: std({ color: 0x141516, roughness: 0.5, metalness: 0.35 }),
     rubber: std({ color: 0x111111, roughness: 0.85 }),
     plastic: std({ color: 0xdcdcd8, roughness: 0.5 }),
     spring: std({ map: springMap, roughness: 0.45, metalness: 0.6 }),
-    tube: std({ color: 0xffffff, emissive: 0xfff2e0, emissiveIntensity: 0, roughness: 0.3 }),
+    tube: std({ color: 0xffffff, emissive: 0xffeedb, emissiveIntensity: 0, roughness: 0.3 }),
     lens: std({ color: 0xf2f0ea, emissive: 0xffe8c8, emissiveIntensity: 0, roughness: 0.4, transparent: true, opacity: 0.95 }),
     lantern: std({ color: 0x3a3226, emissive: 0xffbf73, emissiveIntensity: 3.2, roughness: 0.25 }),
     room: std({ color: 0x080808, emissive: 0xffffff, emissiveMap: roomMap, emissiveIntensity: 1.15, roughness: 0.06 }),
@@ -510,7 +510,7 @@ export function build(ctx) {
     frontDoor: std({ map: frontDoorMap, roughness: 0.35 }),
     brass: std({ color: 0xc9a25a, roughness: 0.28, metalness: 1 }),
     doorOuter: std({ map: doorMap, bumpMap: doorBump, bumpScale: 3, roughness: 0.42, metalness: 0.05 }),
-    doorInner: std({ map: doorInnerMap, roughness: 0.4, metalness: 0.55 }),
+    doorInner: std({ map: doorInnerMap, roughness: 0.45, metalness: 0.12 }),
     doorEdge: std({ color: 0xd6d6d2, roughness: 0.4, metalness: 0.4 }),
     cardboard: std({ map: cardboardMap, roughness: 0.9 }),
     shelf: std({ color: 0x3b3f44, roughness: 0.55, metalness: 0.6 }),
@@ -678,10 +678,10 @@ export function build(ctx) {
   carriage.castShadow = arm.castShadow = HIGH;
   root.add(carriage, arm);
   {
-    put(box(0.035, 0.035, 3.45), M.galv, [0, RAIL_Y + 0.035, -1.92]);
+    put(box(0.035, 0.035, 3.45), M.galv, [0, RAIL_Y + 0.035, -1.92], [0, 0, 0], { cast: false });
     put(box(0.07, 0.1, 0.05), M.galv, [0, RAIL_Y + 0.02, -0.2]);
-    put(rbox(0.38, 0.19, 0.46, 0.03), M.plastic, [0, 2.67, -3.85]);
-    put(rbox(0.3, 0.03, 0.4, 0.01), M.darkMetal, [0, 2.78, -3.85]);
+    put(rbox(0.38, 0.19, 0.46, 0.03), M.plastic, [0, 2.67, -3.85], [0, 0, 0], { cast: false });
+    put(rbox(0.3, 0.03, 0.4, 0.01), M.darkMetal, [0, 2.78, -3.85], [0, 0, 0], { cast: false });
     for (const sx of [-1, 1]) put(box(0.03, 0.14, 0.004), M.galv, [sx * 0.2, 2.83, -3.85], [0, 0, 0], { cast: false });
     const lens = new THREE.Mesh(box(0.26, 0.012, 0.14), M.lens);
     lens.position.set(0, 2.57, -3.95);
@@ -720,7 +720,7 @@ export function build(ctx) {
   const FIX_Y = 2.72;
   {
     for (const [x, z] of FIX) {
-      put(rbox(0.17, 0.045, 1.24, 0.012), M.trimIn, [x, FIX_Y + 0.02, z]);
+      put(rbox(0.17, 0.045, 1.24, 0.012), M.trimIn, [x, FIX_Y + 0.02, z], [0, 0, 0], { cast: false });
       put(box(0.012, 0.03, 1.2), M.galv, [x - 0.07, FIX_Y - 0.005, z], [0, 0, 0], { cast: false });
       put(box(0.012, 0.03, 1.2), M.galv, [x + 0.07, FIX_Y - 0.005, z], [0, 0, 0], { cast: false });
       for (const dz of [-0.5, 0.5]) put(cyl(0.003, 0.003, CEIL - FIX_Y - 0.04, 6), M.galv, [x, (CEIL + FIX_Y + 0.04) / 2, z + dz], [0, 0, 0], { cast: false });
@@ -736,23 +736,28 @@ export function build(ctx) {
   function dimLight(l, base) { l.intensity = 0; interiorLights.push([l, base]); return l; }
   {
     // the ONE interior shadow caster
-    const spot = new THREE.SpotLight(0xfff0dc, 0, 0, 1.25, 0.9, 2);
-    spot.position.set(0.1, 2.83, -5.3);
-    spot.target.position.set(0.3, 0, -3.0);
+    const spot = new THREE.SpotLight(0xffe6c8, 0, 0, 1.3, 1.0, 2);
+    spot.position.set(0.4, 2.62, -4.5);
+    spot.target.position.set(0.4, 0, -3.9);
     spot.castShadow = !DBG.includes('sh');
     spot.shadow.mapSize.set(SHADOW, SHADOW);
     spot.shadow.camera.near = 0.2; spot.shadow.camera.far = 12;
-    spot.shadow.bias = -0.0002; spot.shadow.normalBias = 0.02; spot.shadow.radius = 4;
+    spot.shadow.bias = -0.001; spot.shadow.normalBias = 0.06; spot.shadow.radius = 4;
     root.add(spot, spot.target);
-    dimLight(spot, 38);
+    dimLight(spot, 46);
     shadowLights.push(spot);
     for (const x of [-1.6, 1.6]) {
-      const ra = new THREE.RectAreaLight(0xfff1e2, 0, 0.3, 3.2);
+      const ra = new THREE.RectAreaLight(0xffead2, 0, 0.3, 3.2);
       ra.position.set(x, FIX_Y - 0.03, -5.33);
       ra.rotation.x = -Math.PI / 2;
       if (!DBG.includes('ra')) root.add(ra);
       dimLight(ra, 15);
     }
+    // floor bounce: lifts the ceiling, upper walls and the underside of the open door
+    const bounce = new THREE.PointLight(0xffe6cc, 0, 8.5, 1.6);
+    bounce.position.set(0.2, 0.35, -2.8);
+    root.add(bounce);
+    dimLight(bounce, 4.5);
     // spill out of the door onto the driveway
     const portal = new THREE.RectAreaLight(0xffdcb4, 0, 5.3, 2.3);
     portal.position.set(0, 1.18, -0.35);
@@ -793,7 +798,7 @@ export function build(ctx) {
     const glow = new THREE.PointLight(0xffa850, 0, 2.6, 2);
     glow.position.set(SX, SY, SZ + 0.35);
     if (!DBG.includes('pt')) root.add(glow);
-    dimLight(glow, 1.4);
+    dimLight(glow, 0.8);
     dimmers.push((v) => mat.color.setScalar(2.2 * v));
   }
 
@@ -1020,7 +1025,7 @@ export function build(ctx) {
     const glass = new THREE.Mesh(box(0.145 * s, 0.29 * s, 0.145 * s), M.lantern);
     glass.position.set(x, y, lz);
     root.add(glass);
-    const pl = new THREE.PointLight(0xffb467, 2.4, 7, 2);
+    const pl = new THREE.PointLight(0xffb467, 2.4, 4.5, 2);
     pl.position.set(x, y - 0.02, lz + 0.05);
     if (!DBG.includes('pt')) root.add(pl);
     exteriorLamps.push(pl);
@@ -1083,7 +1088,45 @@ export function build(ctx) {
     g.setAttribute('color', new THREE.BufferAttribute(c, 3));
     g.computeVertexNormals();
     foliage.push(g);
+    const nc = Math.round(Math.min(70, 26 * r * r + 10));
+    leafCards(cx, cy, cz, r * 1.02, sy, nc, Math.min(1.1, 0.3 + r * 0.32), tint, seed * 13 + 1, flat);
   }
+  // Alpha-tested leaf-cluster cards scattered over each blob: breaks up the silhouette.
+  const cardPos = [], cardNor = [], cardUv = [], cardCol = [];
+  const _d = new THREE.Vector3(), _n = new THREE.Vector3(), _t1 = new THREE.Vector3(), _t2 = new THREE.Vector3();
+  function leafCards(cx, cy, cz, r, sy, n, size, tint, seed, flat) {
+    const rr = rng(seed);
+    for (let i = 0; i < n; i++) {
+      const u = rr() * 1.7 - 0.7, th = rr() * 6.283, sq = Math.sqrt(1 - u * u);
+      _d.set(sq * Math.cos(th), u, sq * Math.sin(th));
+      const rad = r * (0.82 + rr() * 0.25);
+      const px = cx + _d.x * rad, py = cy + Math.max(_d.y * rad * sy, -r * flat * sy + 0.05), pz = cz + _d.z * rad;
+      _n.set(_d.x + (rr() - 0.5) * 1.4, _d.y + (rr() - 0.5) * 1.4, _d.z + (rr() - 0.5) * 1.4).normalize();
+      _t1.crossVectors(_n, Math.abs(_n.y) < 0.9 ? V(0, 1, 0) : V(1, 0, 0)).normalize();
+      _t2.crossVectors(_n, _t1);
+      const a = rr() * 6.283, ca = Math.cos(a), sa = Math.sin(a), h = size * (0.7 + rr() * 0.5) / 2;
+      const e1 = _t1.clone().multiplyScalar(ca).addScaledVector(_t2, sa).multiplyScalar(h);
+      const e2 = _t1.clone().multiplyScalar(-sa).addScaledVector(_t2, ca).multiplyScalar(h);
+      const corners = [[-1, -1], [1, -1], [1, 1], [-1, -1], [1, 1], [-1, 1]];
+      const shade = (0.55 + 0.45 * (_d.y + 1) / 2) * (0.75 + 0.5 * rr());
+      for (const [a1, a2] of corners) {
+        cardPos.push(px + e1.x * a1 + e2.x * a2, py + e1.y * a1 + e2.y * a2, pz + e1.z * a1 + e2.z * a2);
+        cardNor.push(_d.x, _d.y, _d.z);
+        cardUv.push((a1 + 1) / 2, (a2 + 1) / 2);
+        cardCol.push(tint[0] * shade * 1.15, tint[1] * shade * 1.15, tint[2] * shade * 1.15);
+      }
+    }
+  }
+  const leafTex = canvasTexture(256, 256, (g, w, h) => {
+    g.clearRect(0, 0, w, h);
+    const r = rng(301);
+    for (let i = 0; i < 90; i++) {
+      const a = r() * 6.283, d = Math.sqrt(r()) * w * 0.4;
+      const x = w / 2 + Math.cos(a) * d, y = h / 2 + Math.sin(a) * d, v = 150 + r() * 105 | 0;
+      g.fillStyle = `rgb(${v},${v},${v})`;
+      g.beginPath(); g.ellipse(x, y, 7 + r() * 9, 3.5 + r() * 4, r() * 6.283, 0, 6.283); g.fill();
+    }
+  }, { wrap: false });
   function tree(x, z, h, seed, tint, detail) {
     const r = rng(seed);
     const trunkH = h * 0.42;
@@ -1114,6 +1157,14 @@ export function build(ctx) {
   {
     const fm = new THREE.Mesh(mergeGeometries(foliage), M.foliage);
     fm.castShadow = true; fm.receiveShadow = true;
+    const cg = new THREE.BufferGeometry();
+    cg.setAttribute('position', new THREE.Float32BufferAttribute(cardPos, 3));
+    cg.setAttribute('normal', new THREE.Float32BufferAttribute(cardNor, 3));
+    cg.setAttribute('uv', new THREE.Float32BufferAttribute(cardUv, 2));
+    cg.setAttribute('color', new THREE.Float32BufferAttribute(cardCol, 3));
+    const cm = new THREE.Mesh(cg, std({ map: leafTex, alphaTest: 0.5, side: THREE.DoubleSide, vertexColors: true, roughness: 0.8 }));
+    cm.castShadow = true; cm.receiveShadow = true;
+    root.add(cm);
     root.add(fm);
   }
 
@@ -1249,12 +1300,14 @@ export function build(ctx) {
     root.add(hemi);
     const moon = new THREE.DirectionalLight(0xa6b8ff, 0.6);
     moon.position.set(-14, 18, 16);
-    moon.target.position.set(0, 0, 2);
+    moon.target.position.set(1, 0, -1);
     moon.castShadow = !DBG.includes('sh');
     moon.shadow.mapSize.set(SHADOW, SHADOW);
     const sc = moon.shadow.camera;
-    sc.left = -22; sc.right = 22; sc.top = 20; sc.bottom = -20; sc.near = 1; sc.far = 70;
-    moon.shadow.bias = -0.0004; moon.shadow.normalBias = 0.03;
+    sc.left = -24; sc.right = 24; sc.top = 24; sc.bottom = -24; sc.near = 1; sc.far = 80; sc.updateProjectionMatrix();
+    moon.shadow.bias = -0.0008; moon.shadow.normalBias = 0.05;
+    if (DBG.includes('moon')) moon.intensity = 0;
+    if (DBG.includes('hemi')) hemi.intensity = 0;
     root.add(moon, moon.target);
     shadowLights.push(moon);
   }

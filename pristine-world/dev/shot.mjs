@@ -37,10 +37,10 @@ const logs = [];
 page.on('console', (m) => { if (['error', 'warning'].includes(m.type())) logs.push(`[${m.type()}] ${m.text()}`); });
 page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`));
 await page.goto(`http://localhost:${port}/${target}`);
-try { await page.waitForFunction(() => window.__ready === true, null, { timeout: 60000 }); }
+try { await page.waitForFunction(() => window.__ready === true, null, { timeout: 180000 }); }
 catch { logs.push('[shot] timed out waiting for window.__ready; capturing anyway'); }
 await page.waitForTimeout(+(process.env.WAIT || 0));
-await page.screenshot({ path: out });
+await page.screenshot({ path: out, timeout: 180000 });
 const info = await page.evaluate(() => ({ hotspots: window.__hotspots, errors: window.__errors })).catch(() => ({}));
 console.log(JSON.stringify({ out, ...info, logs: logs.slice(0, 30) }, null, 1));
 await browser.close();

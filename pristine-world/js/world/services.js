@@ -505,13 +505,14 @@ export function build(ctx) {
     return CT(1024, 1024, (g, w, h) => {
       g.fillStyle = '#2b2824'; g.fillRect(0, 0, w, h);
       const r = rng(61);
-      const cols = ['#8b6a43', '#9a7b55', '#5b5e61', '#cfcac0', '#141516', '#4d6b2c', '#6a3b20', '#a58c68', '#3b3f45', '#b9b4a8', '#7a5a35'];
-      for (let i = 0; i < 900; i++) {
-        const x = r() * w, y = r() * h, s = 6 + r() * r() * 70, a = r() * 6.28;
+      const cols = ['#7a5d3b', '#86694a', '#4b4e51', '#9d988e', '#141516', '#3f5526', '#5a3420', '#8c7658', '#33363b', '#6b5236', '#1d1e20'];
+      for (let i = 0; i < 700; i++) {
+        const x = r() * w, y = r() * h, s = 14 + r() * r() * 110, a = r() * 6.28;
         g.save(); g.translate(x, y); g.rotate(a);
         g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(-s / 2 + 3, -s * 0.3 + 3, s, s * (0.2 + r() * 0.5));
         g.fillStyle = cols[Math.floor(r() * cols.length)];
         g.fillRect(-s / 2, -s * 0.3, s, s * (0.2 + r() * 0.5));
+        g.fillStyle = `rgba(255,255,255,${r() * 0.12})`; g.fillRect(-s / 2, -s * 0.3, s, 2);
         g.restore();
       }
       grainFx(g, w, h, { amount: 0.2, seed: 62 });
@@ -726,8 +727,8 @@ export function build(ctx) {
       b.add(segCyl(p.toArray(), mid.toArray(), rad, rm, depth > 1 ? 7 : 5), mat.bark);
       b.add(segCyl(mid.toArray(), end.toArray(), rm, re, depth > 1 ? 7 : 5), mat.bark);
       if (depth === 0) {
-        for (let i = 0; i < 16; i++) {
-          const q = end.clone().add(V((r() - 0.5) * 0.22, (r() - 0.4) * 0.2, (r() - 0.5) * 0.22));
+        for (let i = 0; i < 22; i++) {
+          const q = end.clone().add(V((r() - 0.5) * 0.26, (r() - 0.4) * 0.24, (r() - 0.5) * 0.26));
           leafList.push({ p: q, rot: [r() * 6.3, r() * 6.3, r() * 6.3], s: 0.75 + r() * 0.5, t: r() });
         }
         return;
@@ -746,8 +747,8 @@ export function build(ctx) {
     for (const [p, d, len, rad, depth] of roots) grow(V(...p), V(...d).normalize(), len, rad, depth);
   }
   function leafMesh(list) {
-    const g = new THREE.PlaneGeometry(0.075, 0.055);
-    g.translate(0, 0.027, 0);
+    const g = new THREE.PlaneGeometry(0.095, 0.07);
+    g.translate(0, 0.034, 0);
     const im = new THREE.InstancedMesh(g, mat.leaf, list.length);
     const m = new THREE.Matrix4(), c = new THREE.Color();
     list.forEach((l, i) => {
@@ -1050,7 +1051,7 @@ export function build(ctx) {
     b.add(rbox(0.44, 0.03, 0.47, 0.012), mat.blackPlastic, M(0, 0.53, -0.53, 0.12, 0, 0));
     b.add(rbox(0.1, 0.03, 0.03, 0.01), mat.blackPlastic, M(0, 0.56, -0.74, 0.12, 0, 0));
     const g = b.build({ name: 'svc-mower' });
-    place(g, -2.9, 0, -1.45, 0, -2.1, 0);
+    place(g, -2.95, 0, -1.72, 0, -2.2, 0);
     add(g);
     hotspot(g, { id: 'svc-lawn', views: { services: { item: 'lawn', label: 'Lawn care' } } });
   }
@@ -1196,7 +1197,7 @@ export function build(ctx) {
   const FLOOR = 0.14, TOP = 1.39, SV = 1 / (1.45 - FLOOR);
   const paintUV = (g) => boxUV(g, 1 / 5, SV, 0.5, -FLOOR * SV);
   const placed = (g, m) => g.applyMatrix4(m);
-  const heapY = (x, z) => 0.74 + 0.26 * (1 - 0.45 * (x / 1.1) ** 2 - 0.55 * (z / 2.3) ** 4) + (fbm(x * 1.7 + 5, 0, z * 1.7 + 5, 9) - 0.5) * 0.16;
+  const heapY = (x, z) => 0.94 + 0.3 * (1 - 0.45 * (x / 1.1) ** 2 - 0.55 * (z / 2.3) ** 4) + (fbm(x * 1.7 + 5, 0, z * 1.7 + 5, 9) - 0.5) * 0.24;
 
   {
     const b = new Bag();
@@ -1325,6 +1326,23 @@ export function build(ctx) {
     const tl = [[0.19, -0.09], [0.29, -0.09], [0.31, -0.07], [0.32, -0.03], [0.32, 0.03], [0.31, 0.07], [0.29, 0.09], [0.19, 0.09]];
     b.add(lathe(tl, sg(32)), mat.tire, M(0.6, heapY(0.6, 2.05) + 0.05, 2.05, 0.35, 0, 0.2));
     b.add(cyl(0.12, 0.12, 1.5, sg(18)), mat.carpet, M(-0.85, heapY(-0.85, 0.2) + 0.2, 0.2, 0.2, 0, 0.3));
+    // assorted chunks: plywood, drywall, a mattress, a broken chair, more bags of debris
+    const mt = new THREE.MeshStandardMaterial({ map: surfaceTex('#d8d2c4', { seed: 101, dirt: 0.25, dirtColor: '90,70,40', extra: (g, w, h) => { g.strokeStyle = 'rgba(80,90,120,0.35)'; g.lineWidth = 6; for (let x = 0; x < w; x += 48) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); } } }), roughness: 0.95 });
+    const mattress = rbox(1.35, 0.2, 1.9, 0.07, 3); lumpify(mattress, 0.02, 3, 12); smoothNormals(mattress); boxUV(mattress, 1.2);
+    b.add(mattress, mt, M(-0.55, heapY(-0.55, -0.9) - 0.12, -0.9, 0.35, 0.1, 0.9));
+    for (let i = 0; i < 12; i++) {
+      const x = (r() - 0.5) * 1.8, z = (r() - 0.5) * 4.2, k = r();
+      const w = 0.2 + r() * 0.5, d = 0.2 + r() * 0.6;
+      const g = k < 0.35 ? rbox(w, 0.018, d, 0.004) : k < 0.6 ? rbox(w * 0.6, w * 0.5, d * 0.7, 0.01) : rbox(0.09, 0.04, d + 0.4, 0.004);
+      if (k >= 0.35 && k < 0.6) lumpify(g, 0.01, 6, i);
+      boxUV(g, 2);
+      b.add(g, k < 0.35 ? mat.drywall : k < 0.6 ? mat.cardboard : mat.pine, M(x, heapY(x, z) + 0.03, z, (r() - 0.5) * 0.8, r() * 6, (r() - 0.5) * 0.8));
+    }
+    b.push(M(0.72, heapY(0.72, -1.95) + 0.1, -1.95, 0.9, 0.4, 0.3));
+    b.add(boxUV(rbox(0.42, 0.03, 0.4, 0.006), 2), mat.pine);
+    for (const [x, z] of [[-0.18, -0.17], [0.18, -0.17], [-0.18, 0.17], [0.18, 0.17]]) b.add(cyl(0.017, 0.014, 0.42, 8), mat.couchLeg, M(x, -0.22, z));
+    b.add(boxUV(rbox(0.42, 0.4, 0.03, 0.006), 2), mat.pine, M(0, 0.2, -0.19));
+    b.pop();
     const g = b.build({ name: 'dumpster-heap' });
     dump.add(g);
   }
@@ -1445,7 +1463,7 @@ export function build(ctx) {
     const b = new Bag();
     gutterSection(b, 2.6, { cap: true, gunk: true });
     const g = b.build();
-    junk('junk-gutter', 'dump-gutters', 'gutters', 'Gutter cleaning', g, [1.3, 1.5, 1.2], [0.1, -0.56, -0.2]);
+    junk('junk-gutter', 'dump-gutters', 'gutters', 'Gutter cleaning', g, [1.3, 1.53, 1.2], [0.1, -0.56, -0.2]);
   }
 
   // ---- dumpster group hotspot for the street view (body + an invisible volume over the pile)

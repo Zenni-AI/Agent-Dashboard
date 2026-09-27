@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>World harness</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}canvas{display:block}</style>
+<script type="importmap">
+{ "imports": { "three": "../vendor/three/three.module.min.js", "three/addons/": "../vendor/three/addons/" } }
+</script>
+</head>
+<body>
+<script type="module">
+// Dev harness: renders one or more world modules from a fixed viewpoint.
+// URL params:
+//   m=garage,solar      modules from ../js/world/<name>.js to build
+//   view=garage         a key from js/views.js
+//   cam=x,y,z&t=x,y,z&fov=50   free camera instead of a view
+//   markers=1           draw a red dot at each registered hotspot's anchor
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { VIEWS } from '../js/views.js';
+import tex from '../js/lib/tex.js';
+
+const q = new URLSearchParams(location.search);
+const mods = (q.get('m') || 'garage').split(',').filter(Boolean);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(1);
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b1018);
+const pm = new THREE.PMREMGenerator(renderer);
+scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.35;
+
+const hotspots = [];
+const updates = [];
+const ctx = {
+  THREE, scene, tex, quality: 'high', renderer, api: {},
+  add: (o) => (scene.add(o), o),
+  hotspot: (obj, spec) => (hotspots.push({ obj, spec }), obj),
+  onUpdate: (fn) => updates.push(fn),
+};
+
+if (!mods.includes('garage')) {
+  // Stand-in lighting so single modules can be judged on their own.
+  scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x303030, 0.6));
+  const d = new THREE.DirectionalLight(0xffffff, 1.6); d.position.set(3, 6, 4); d.castShadow = true; scene.add(d);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshStandardMaterial({ color: 0x444a52, roughness: 0.6 }));
+  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+}
+
+const errors = [];
+for (const m of mods) {
+  try { const mod = await import(`../js/world/${m}.js`); await mod.build(ctx); }
+  catch (e) { errors.push(`${m}: ${e.stack || e}`); console.error(e); }
+}
+
+const cam = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.05, 400);
+const v = VIEWS[q.get('view') || 'garage'];
+const P = q.get('cam') ? q.get('cam').split(',').map(Number) : v.pos;
+const T = q.get('t') ? q.get('t').split(',').map(Number) : v.target;
+cam.fov = Number(q.get('fov')) || v.fov; cam.updateProjectionMatrix();
+cam.position.set(...P); cam.lookAt(...T);
+
+if (q.get('markers')) {
+  for (const h of hotspots) {
+    const box = new THREE.Box3().setFromObject(h.obj);
+    const a = h.spec.anchor ? new THREE.Vector3(...h.spec.anchor) : new THREE.Vector3((box.min.x + box.max.x) / 2, box.max.y, (box.min.z + box.max.z) / 2);
+    const s = new THREE.Mesh(new THREE.SphereGeometry(0.04), new THREE.MeshBasicMaterial({ color: 0xff0000, depthTest: false }));
+    s.renderOrder = 999; s.position.copy(a); scene.add(s);
+  }
+}
+
+// Let the scene settle (door animations etc.) then flag ready for screenshots.
+const clock = new THREE.Clock();
+let t = 0;
+const settle = Number(q.get('settle') ?? 3);
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.05); t += dt;
+  for (const f of updates) f(dt, t);
+  renderer.render(scene, cam);
+  if (t > settle) window.__ready = true;
+  requestAnimationFrame(frame);
+}
+// Door-style intros: open immediately in the harness.
+if (ctx.api.garage?.openDoor) ctx.api.garage.openDoor(0.01);
+if (ctx.api.garage?.setLights) ctx.api.garage.setLights(1);
+window.__hotspots = hotspots.map((h) => ({ id: h.spec.id, views: Object.keys(h.spec.views || {}) }));
+window.__errors = errors;
+frame();
+</script>
+</body>
+</html>

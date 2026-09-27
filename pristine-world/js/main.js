@@ -44,7 +44,7 @@ function route(a, b) {
 // Where each department sits on the minimap (world x, z).
 const ZONES = {
   garage: [-0.4, 9.5], services: [-3.2, -3.4], dumpster: [-5.0, 5.0],
-  solar: [0.9, -3.4], network: [3.2, -6.8], about: [-1.5, -6.8],
+  solar: [0.9, -3.4], network: [2.65, -6.55], about: [-1.5, -6.8],
 };
 
 boot().catch((err) => { console.error(err); showFallback(); });

@@ -51,24 +51,24 @@ function pchip(pts) {
 // height (widest point), half width, and how far the fender crowns rise above
 // the centre line.
 const Y1 = pchip([[-2.315, 0.975], [-2.24, 1.03], [-2.05, 1.045], [-1.8, 1.035], [-1.4, 0.995], [-0.7, 0.905], [0.1, 0.855], [0.8, 0.815], [1.3, 0.76], [1.75, 0.685], [2.05, 0.615], [2.23, 0.55], [2.315, 0.49]]);
-const Y0 = pchip([[-2.315, 0.40], [-2.2, 0.32], [-2.0, 0.19], [-1.75, 0.13], [1.7, 0.13], [2.05, 0.15], [2.315, 0.19]]);
+const Y0 = pchip([[-2.315, 0.28], [-2.2, 0.235], [-2.0, 0.165], [-1.75, 0.13], [1.7, 0.13], [2.05, 0.15], [2.315, 0.19]]);
 const YC = pchip([[-2.315, 0.66], [-1.6, 0.60], [-0.9, 0.56], [0, 0.52], [1.2, 0.47], [2.0, 0.42], [2.315, 0.37]]);
 const WB = pchip([[-2.315, 0.905], [-2.05, 0.945], [-1.5, 0.966], [-1.0, 0.957], [-0.45, 0.922], [0.35, 0.918], [0.95, 0.94], [1.35, 0.955], [1.85, 0.935], [2.315, 0.87]]);
 const RISE = pchip([[-2.315, 0.0], [-2.0, 0.025], [-1.5, 0.035], [-0.8, 0.02], [0.0, 0.018], [0.7, 0.03], [1.3, 0.07], [1.85, 0.06], [2.2, 0.03], [2.315, 0.01]]);
-const NU = pchip([[-2.315, 5.0], [-1.0, 4.4], [0.5, 4.2], [1.5, 4.6], [2.315, 3.4]]);
-const NL = 2.7;
+const NU = pchip([[-2.315, 5.0], [-1.0, 4.4], [0.5, 4.2], [1.5, 4.8], [2.315, 4.6]]);
+const NLF = pchip([[-2.315, 4.4], [-1.95, 3.4], [-1.45, 2.7], [1.8, 2.7], [2.315, 3.4]]);
 const TH = 0.07; // tumblehome of the upper quarter
 
 // Plan-view rounding of the nose and tail corners.
 function planRound(z) {
-  const rcF = 0.55, rcR = 0.2;
-  if (z > ZF - rcF) { const s = Math.min(1, (z - (ZF - rcF)) / rcF); return 0.55 + 0.45 * Math.sqrt(1 - s * s); }
+  const rcF = 0.44, rcR = 0.2;
+  if (z > ZF - rcF) { const s = Math.min(1, (z - (ZF - rcF)) / rcF); return 1 - 0.6 * Math.pow(s, 1.7); }
   if (z < ZR + rcR) { const s = Math.min(1, ((ZR + rcR) - z) / rcR); return 0.86 + 0.14 * Math.sqrt(1 - s * s); }
   return 1;
 }
 
 // Side scoop behind the door (z, y polygon, convex).
-const INTAKE = [[-0.30, 0.37], [-0.43, 0.80], [-0.93, 0.80], [-1.05, 0.60], [-0.96, 0.38]];
+const INTAKE = [[-0.30, 0.37], [-0.43, 0.80], [-0.90, 0.80], [-0.99, 0.60], [-0.93, 0.38]];
 const INTAKE_EDGES = (() => {
   const n = INTAKE.length, cz = INTAKE.reduce((s, p) => s + p[0], 0) / n, cy = INTAKE.reduce((s, p) => s + p[1], 0) / n;
   return INTAKE.map((p, i) => {
@@ -84,7 +84,7 @@ function intakeSD(z, y) { let d = -1e9; for (const [nz, ny, c] of INTAKE_EDGES) 
 function deform(ax, y, z) {
   for (const a of ARCHES) {
     const dz = z - a.z, dy = y - a.y, dist = Math.hypot(dz, dy);
-    if (dist < a.R && ax > a.xin) return a.xin;
+    // The opening itself is cut per-pixel in the paint shader (see archCut).
     if (ax > a.xin + 0.08 && dist < a.R + 0.1 && dy > -0.14) { const e = (dist - a.R) / 0.035; ax += 0.013 * Math.exp(-e * e); }
   }
   if (ax > 0.7 && z < -0.2 && z > -1.15) {
@@ -102,7 +102,9 @@ function deform(ax, y, z) {
 // bottom centre, up the +x side, over the top and down the -x side.
 function makeSection(NA) {
   return function section(z, out) {
-    const w = WB(z) * planRound(z), y0 = Y0(z), y1 = Y1(z), yc = YC(z), rise = RISE(z), nu = NU(z);
+    const crease = 0.011 * smooth(0.9, 1.25, z) * smooth(2.3, 1.95, z);
+    const side = 0.009 * smooth(1.05, 0.8, z) * smooth(-0.55, -0.3, z);
+    const w = WB(z) * planRound(z), y0 = Y0(z), y1 = Y1(z), yc = YC(z), rise = RISE(z), nu = NU(z), NL = NLF(z);
     let dlt = 0;
     if (z > ZF - RE) { const d = Math.min(1, (z - (ZF - RE)) / RE); dlt = RE * (1 - Math.sqrt(1 - d * d)); }
     else if (z < ZR + RE) { const d = Math.min(1, ((ZR + RE) - z) / RE); dlt = RE * (1 - Math.sqrt(1 - d * d)); }
@@ -119,9 +121,11 @@ function makeSection(NA) {
       } else {
         const v = Math.pow(sn, 2 / nu);
         x = w * Math.pow(c, 2 / nu) * (1 - TH * v * v);
-        y = yc + (y1 - yc) * v + rise * smooth(0.3, 0.86, x / w) * Math.pow(sn, 0.6);
+        const u = x / w;
+        y = yc + (y1 - yc) * v + rise * smooth(0.3, 0.86, u) * Math.pow(sn, 0.6) + crease * Math.max(0, 1 - Math.abs(u - 0.43) / 0.11) * v;
       }
       x *= sx; y = ym + (y - ym) * sy;
+      if (side > 0 && phi > -0.5 && phi < 0.9) { const e = Math.max(0, 1 - Math.abs(y - 0.70) / 0.05); x += side * e * x / w; }
       out[j * 2] = sign * deform(x, y, z); out[j * 2 + 1] = y;
     }
     return out;
@@ -129,12 +133,12 @@ function makeSection(NA) {
 }
 
 // ---------------------------------------------------------------- cabin
-const CAB_Z0 = 0.80, CAB_Z1 = -1.98;
-const CT = pchip([[-1.98, 1.02], [-1.6, 1.075], [-1.1, 1.155], [-0.65, 1.212], [-0.32, 1.23], [-0.08, 1.215], [0.2, 1.12], [0.5, 0.97], [0.80, 0.835]]);
-const WCB = pchip([[-1.98, 0.80], [-1.45, 0.855], [-0.75, 0.84], [0.0, 0.80], [0.5, 0.75], [0.80, 0.71]]);
-const WCT = pchip([[-1.98, 0.56], [-1.2, 0.56], [-0.6, 0.555], [-0.1, 0.54], [0.4, 0.51], [0.80, 0.49]]);
+const CAB_Z0 = 0.93, CAB_Z1 = -1.98;
+const CT = pchip([[-1.98, 1.02], [-1.6, 1.075], [-1.1, 1.155], [-0.65, 1.212], [-0.32, 1.23], [-0.02, 1.218], [0.28, 1.13], [0.6, 0.975], [0.93, 0.80]]);
+const WCB = pchip([[-1.98, 0.80], [-1.45, 0.855], [-0.75, 0.84], [0.0, 0.80], [0.55, 0.745], [0.93, 0.69]]);
+const WCT = pchip([[-1.98, 0.56], [-1.2, 0.56], [-0.6, 0.555], [-0.1, 0.54], [0.45, 0.51], [0.93, 0.48]]);
 const NC = 4.2;
-const ZA = -0.06;   // windshield header
+const ZA = -0.02;   // windshield header
 const ZB = -0.64;   // roof / rear glass break
 
 function cabGroup(z, u, v) { // 0 paint, 1 glass, 2 black trim
@@ -160,7 +164,7 @@ function cabGroup(z, u, v) { // 0 paint, 1 glass, 2 black trim
 export function build(ctx) {
   const { tex, renderer } = ctx;
   const hi = ctx.quality !== 'low';
-  const NA = hi ? 112 : 72;
+  const NA = hi ? 136 : 80;
   const section = makeSection(NA);
 
   // ---- local reflection environment: garage strip lights + open door
@@ -169,8 +173,8 @@ export function build(ctx) {
 
   // ---- materials
   const paint = new THREE.MeshPhysicalMaterial({
-    color: 0xc1121f, metalness: 0.42, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.03,
-    envMap, envMapIntensity: 1.15,
+    color: 0xb5101c, metalness: 0.4, roughness: 0.27, clearcoat: 1, clearcoatRoughness: 0.025,
+    envMap, envMapIntensity: 1.3,
   });
   const glass = new THREE.MeshPhysicalMaterial({
     color: 0x07090c, metalness: 0.0, roughness: 0.05, clearcoat: 1, clearcoatRoughness: 0.02,
@@ -207,7 +211,7 @@ export function build(ctx) {
 
   // ---- body loft
   const zs = [];
-  const NZ = hi ? 210 : 120;
+  const NZ = hi ? 280 : 140;
   for (let i = 0; i <= NZ; i++) zs.push({ z: ZR + RE + (ZF - ZR - 2 * RE) * i / NZ });
   for (let k = 1; k <= 8; k++) {
     const th = k / 8 * Math.PI / 2;
@@ -228,7 +232,16 @@ export function build(ctx) {
     }
     return { z: s.z, pts };
   }), NA, null);
-  const bodyMesh = new THREE.Mesh(body, paint);
+  const bodyPaint = paint.clone();
+  const cut = ARCHES.map((a) => `if (abs(vCarLocal.x) > ${a.xin.toFixed(4)} && length(vCarLocal.zy - vec2(${a.z.toFixed(4)}, ${a.y.toFixed(4)})) < ${a.R.toFixed(4)}) discard;`).join('\n');
+  bodyPaint.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vCarLocal;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCarLocal = position;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vCarLocal;')
+      .replace('void main() {', 'void main() {\n' + cut);
+  };
+  bodyPaint.customProgramCacheKey = () => 'solar-car-body';
+  const bodyMesh = new THREE.Mesh(body, bodyPaint);
   bodyMesh.castShadow = true; bodyMesh.receiveShadow = true;
   car.add(bodyMesh);
 
@@ -249,13 +262,42 @@ export function build(ctx) {
     }
     cabRows.push({ z, pts, uv });
   }
-  const cabin = loftGeometry(cabRows, NAC, (i, j) => {
-    const z = (cabRows[i].z + cabRows[i + 1].z) / 2;
-    const r = cabRows[i].uv;
-    const u = (r[j * 2] + r[j * 2 + 2]) / 2, v = (r[j * 2 + 1] + r[j * 2 + 3]) / 2;
-    return cabGroup(z, u, v);
+  const cabin = loftGeometry(cabRows, NAC, null);
+  // Paint / glass / trim zones are baked into maps (supersampled per texel) so
+  // the window outlines stay crisp instead of following the mesh grid.
+  const cabMaps = (() => {
+    const W = hi ? 1024 : 512, H = hi ? 512 : 256, SS = 2;
+    const cols = [[181, 16, 28], [7, 9, 12], [11, 12, 14]];
+    const rough = [0.30, 0.05, 0.22], metal = [0.42, 0.0, 0.3];
+    const c1 = document.createElement('canvas'), c2 = document.createElement('canvas');
+    c1.width = c2.width = W; c1.height = c2.height = H;
+    const g1 = c1.getContext('2d'), g2 = c2.getContext('2d');
+    const d1 = g1.createImageData(W, H), d2 = g2.createImageData(W, H);
+    for (let py = 0; py < H; py++) for (let px = 0; px < W; px++) {
+      let r = 0, gg = 0, b = 0, ro = 0, me = 0;
+      for (let sy = 0; sy < SS; sy++) for (let sx = 0; sx < SS; sx++) {
+        const z = CAB_Z1 + (px + (sx + 0.5) / SS) / W * (CAB_Z0 - CAB_Z1);
+        const t = 1 - (py + (sy + 0.5) / SS) / H;
+        const phi = t * Math.PI;
+        const u = Math.pow(Math.abs(Math.cos(phi)), 2 / NC), v = Math.pow(Math.sin(phi), 2 / NC);
+        const k = cabGroup(z, u, v);
+        r += cols[k][0]; gg += cols[k][1]; b += cols[k][2]; ro += rough[k]; me += metal[k];
+      }
+      const n = SS * SS, o = (py * W + px) * 4;
+      d1.data[o] = r / n; d1.data[o + 1] = gg / n; d1.data[o + 2] = b / n; d1.data[o + 3] = 255;
+      d2.data[o] = 255; d2.data[o + 1] = ro / n * 255; d2.data[o + 2] = me / n * 255; d2.data[o + 3] = 255;
+    }
+    g1.putImageData(d1, 0, 0); g2.putImageData(d2, 0, 0);
+    const t1 = new THREE.CanvasTexture(c1); t1.colorSpace = THREE.SRGBColorSpace;
+    const t2 = new THREE.CanvasTexture(c2); t2.colorSpace = THREE.NoColorSpace;
+    for (const t of [t1, t2]) { t.anisotropy = 8; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; }
+    return { map: t1, orm: t2 };
+  })();
+  const cabMat = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff, map: cabMaps.map, roughnessMap: cabMaps.orm, metalnessMap: cabMaps.orm, roughness: 1, metalness: 1,
+    clearcoat: 1, clearcoatRoughness: 0.03, envMap, envMapIntensity: 1.3,
   });
-  const cabMesh = new THREE.Mesh(cabin, [paint, glass, trim]);
+  const cabMesh = new THREE.Mesh(cabin, cabMat);
   cabMesh.castShadow = true; cabMesh.receiveShadow = true;
   car.add(cabMesh);
 
@@ -377,28 +419,28 @@ export function build(ctx) {
   }
 
   // ---- front fascia: centre intake, corner intakes, splitter
-  decal([[-0.46, 0.175], [0.46, 0.175], [0.40, 0.355], [0.26, 0.385], [-0.26, 0.385], [-0.40, 0.355]], PL.F, grille, { uv: 1 / 0.035, maxEdge: 0.03 });
+  decal([[-0.27, 0.165], [0.27, 0.165], [0.25, 0.335], [-0.25, 0.335]], PL.F, grille, { uv: 1 / 0.035, maxEdge: 0.03 });
   for (const s of [1, -1]) {
-    const p = [[0.50, 0.19], [0.74, 0.25], [0.72, 0.43], [0.62, 0.43], [0.48, 0.34]];
-    decal(s > 0 ? p : mx(p), PL.F, grille, { uv: 1 / 0.035, maxEdge: 0.02 });
-    strip((s > 0 ? [[0.44, 0.42], [0.62, 0.46], [0.74, 0.46]] : mx([[0.44, 0.42], [0.62, 0.46], [0.74, 0.46]])), 0.006, PL.F, gapMat);
+    const f = (p) => p.map(([a, b]) => [a * s, b]);
+    decal(f([[0.33, 0.17], [0.62, 0.19], [0.80, 0.27], [0.86, 0.44], [0.70, 0.49], [0.47, 0.42], [0.34, 0.34]]), PL.F, grille, { uv: 1 / 0.035, maxEdge: 0.02 });
+    strip(f([[0.30, 0.36], [0.46, 0.45], [0.70, 0.52], [0.88, 0.47]]), 0.006, PL.F, gapMat);
   }
   {
     // splitter plate following the nose outline
     const shape = new THREE.Shape();
     const outline = [];
-    for (let i = 0; i <= 24; i++) { const z = 1.72 + (ZF + 0.03 - 1.72) * i / 24; outline.push([WB(z) * planRound(Math.min(z, ZF)) - 0.03 - (z > ZF ? 0.06 : 0), z]); }
-    shape.moveTo(outline[0][0], -outline[0][1]);
-    for (const [x, z] of outline) shape.lineTo(x, -z);
-    for (let i = outline.length - 1; i >= 0; i--) shape.lineTo(-outline[i][0], -outline[i][1]);
-    const g = new THREE.ExtrudeGeometry(shape, { depth: 0.022, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 2, curveSegments: 4 });
+    for (let i = 0; i <= 24; i++) { const z = 1.72 + (ZF + 0.012 - 1.72) * i / 24; outline.push([WB(z) * planRound(Math.min(z, ZF)) * 0.86 - (z > ZF ? 0.04 : 0), z]); }
+    shape.moveTo(outline[0][0], outline[0][1]);
+    for (const [x, z] of outline) shape.lineTo(x, z);
+    for (let i = outline.length - 1; i >= 0; i--) shape.lineTo(-outline[i][0], outline[i][1]);
+    const g = new THREE.ExtrudeGeometry(shape, { depth: 0.014, bevelEnabled: true, bevelThickness: 0.003, bevelSize: 0.003, bevelSegments: 2, curveSegments: 4 });
     g.rotateX(Math.PI / 2);
-    const m = new THREE.Mesh(g, trim); m.position.y = 0.135; m.castShadow = hi; car.add(m);
+    const m = new THREE.Mesh(g, trim); m.position.y = 0.15; m.castShadow = hi; car.add(m);
   }
 
   // ---- side details: scoop grille, door gaps, rocker, charge door
   for (const [pl, s] of [[PL.R, 1], [PL.L, -1]]) {
-    decal([[-0.34, 0.405], [-0.455, 0.775], [-0.90, 0.775], [-1.0, 0.61], [-0.93, 0.415]], pl, grille, { uv: 1 / 0.04, maxEdge: 0.03, eps: 0.003 });
+    decal([[-0.34, 0.405], [-0.455, 0.775], [-0.875, 0.775], [-0.955, 0.605], [-0.9, 0.415]], pl, grille, { uv: 1 / 0.04, maxEdge: 0.03, eps: 0.003 });
     strip([[0.905, 0.25], [0.93, 0.55], [0.905, 0.82]], 0.0045, pl, gapMat);
     strip([[0.905, 0.25], [-0.27, 0.25], [-0.30, 0.37]], 0.0045, pl, gapMat);
     decal([[0.94, 0.135], [0.94, 0.215], [0.2, 0.232], [-0.97, 0.232], [-0.97, 0.135]], pl, decalBlack, { maxEdge: 0.03 });
@@ -412,11 +454,12 @@ export function build(ctx) {
   strip([[-0.62, -1.93], [0.62, -1.93]], 0.0045, PL.T, gapMat);
 
   // ---- rear: taillights, black panel, vents, plate
-  const TL = [[0.28, 0.935], [0.84, 0.955], [0.905, 0.90], [0.87, 0.80], [0.74, 0.80], [0.66, 0.855], [0.30, 0.875]];
+  const TL = [[0.26, 0.935], [0.84, 0.957], [0.91, 0.90], [0.905, 0.75], [0.80, 0.735], [0.70, 0.83], [0.28, 0.86]];
   for (const s of [1, -1]) {
     const f = (p) => p.map(([a, b]) => [a * s, b]);
     decal(f(TL), PL.K, tailLens, { eps: 0.003, maxEdge: 0.02 });
-    strip(f([[0.31, 0.905], [0.66, 0.915], [0.86, 0.925], [0.885, 0.86], [0.86, 0.815]]), 0.012, PL.K, tailBlade, { eps: 0.0045 });
+    strip(f([[0.29, 0.912], [0.66, 0.922], [0.865, 0.93], [0.89, 0.86], [0.885, 0.77]]), 0.012, PL.K, tailBlade, { eps: 0.0045 });
+    strip(f([[0.32, 0.878], [0.66, 0.878], [0.79, 0.77]]), 0.007, PL.K, tailBlade, { eps: 0.0045 });
     decal(f([[0.55, 0.46], [0.86, 0.50], [0.87, 0.70], [0.70, 0.72], [0.56, 0.62]]), PL.K, grille, { uv: 1 / 0.035, eps: 0.003 });
   }
   decal([[-0.28, 0.86], [0.28, 0.86], [0.28, 0.94], [-0.28, 0.94]], PL.K, decalBlack, { maxEdge: 0.02 });
@@ -443,34 +486,39 @@ export function build(ctx) {
     const pb = hitPt(PL.K, 0, 0.9);
     if (pb) {
       const lb = tex.label('PRISTINE', { font: '700 110px "Helvetica Neue", Arial, sans-serif', color: '#e9ecef', height: 160, pad: 20 });
-      const lm = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.34 / lb.aspect), new THREE.MeshStandardMaterial({ map: lb.texture, transparent: true, metalness: 0.9, roughness: 0.2, envMap }));
-      lm.position.copy(pb).add(v3(0, 0, -0.007)); lm.rotation.y = Math.PI; car.add(lm);
+      const lm = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.26 / lb.aspect), new THREE.MeshStandardMaterial({ map: lb.texture, transparent: true, metalness: 0.9, roughness: 0.2, envMap }));
+      lm.position.copy(pb).add(v3(0, 0, -0.012)); lm.rotation.y = Math.PI; car.add(lm);
     }
   }
 
   // ---- diffuser, exhaust, spoiler
   {
-    const d = new THREE.Mesh(new RoundedBoxGeometry(1.62, 0.25, 0.52, 3, 0.03), matte);
-    d.position.set(0, 0.25, -2.07); d.castShadow = hi; car.add(d);
+    const ds = new THREE.Shape();
+    const dp = [[1.85, 0.12], [2.05, 0.125], [2.3, 0.18], [2.3, 0.27], [1.85, 0.22]];
+    ds.moveTo(dp[0][0], dp[0][1]); for (const [a, b] of dp.slice(1)) ds.lineTo(a, b); ds.closePath();
+    const dg = new THREE.ExtrudeGeometry(ds, { depth: 1.2, bevelEnabled: true, bevelSize: 0.008, bevelThickness: 0.008, bevelSegments: 2 });
+    dg.translate(0, 0, -0.6); dg.rotateY(Math.PI / 2);
+    const d = new THREE.Mesh(dg, matte); d.castShadow = hi; car.add(d);
     for (let i = -3; i <= 3; i++) {
-      if (Math.abs(i) === 0) continue;
-      const fin = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.17, 0.42), matte);
-      fin.position.set(i * 0.2 + (i > 0 ? 0.06 : -0.06), 0.2, -2.12); car.add(fin);
+      if (i === 0) continue;
+      if (Math.abs(i) === 1) continue;
+      const fin = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.07, 0.26), matte);
+      fin.position.set(i * 0.19 + (i > 0 ? 0.04 : -0.04), 0.17, -2.17); fin.rotation.x = -0.22; car.add(fin);
     }
     const tipGeo = new THREE.LatheGeometry([new THREE.Vector2(0.036, -0.08), new THREE.Vector2(0.041, 0), new THREE.Vector2(0.044, 0.01), new THREE.Vector2(0.038, 0.012), new THREE.Vector2(0.033, 0.0), new THREE.Vector2(0.033, -0.08)], 28);
     tipGeo.rotateX(-Math.PI / 2);
     const soot = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.9 });
     for (const x of [-0.26, -0.13, 0.13, 0.26]) {
-      const t = new THREE.Mesh(tipGeo, chrome); t.position.set(x, 0.285, -2.33); car.add(t);
-      const inner = new THREE.Mesh(new THREE.CircleGeometry(0.034, 20), soot); inner.position.set(x, 0.285, -2.30); inner.rotation.y = Math.PI; car.add(inner);
+      const t = new THREE.Mesh(tipGeo, chrome); t.position.set(x, 0.25, -2.325); car.add(t);
+      const inner = new THREE.Mesh(new THREE.CircleGeometry(0.034, 20), soot); inner.position.set(x, 0.25, -2.295); inner.rotation.y = Math.PI; car.add(inner);
     }
     // ducktail spoiler blade
     const sh = new THREE.Shape();
-    sh.moveTo(0, 0); sh.lineTo(0.16, 0.0); sh.quadraticCurveTo(0.2, 0.03, 0.19, 0.055); sh.lineTo(0.02, 0.02); sh.lineTo(0, 0);
-    const sg = new THREE.ExtrudeGeometry(sh, { depth: 1.62, bevelEnabled: true, bevelSize: 0.006, bevelThickness: 0.006, bevelSegments: 2, curveSegments: 8 });
-    sg.translate(0, 0, -0.81); sg.rotateY(Math.PI / 2);
-    const sp = new THREE.Mesh(sg, trim);
-    sp.position.set(0, Y1(-2.1) - 0.01, -2.1); sp.castShadow = true; car.add(sp);
+    sh.moveTo(0, 0); sh.lineTo(0.1, 0.0); sh.quadraticCurveTo(0.125, 0.012, 0.122, 0.03); sh.lineTo(0.02, 0.012); sh.lineTo(0, 0);
+    const sg = new THREE.ExtrudeGeometry(sh, { depth: 1.2, bevelEnabled: true, bevelSize: 0.006, bevelThickness: 0.006, bevelSegments: 2, curveSegments: 8 });
+    sg.translate(0, 0, -0.6); sg.rotateY(Math.PI / 2);
+    const sp = new THREE.Mesh(sg, paint);
+    sp.position.set(0, Y1(-2.15) - 0.006, -2.15); sp.castShadow = true; car.add(sp);
   }
 
   // ---- mirrors
@@ -481,17 +529,17 @@ export function build(ctx) {
     hsg.computeVertexNormals();
     const housing = new THREE.Mesh(hsg, paint);
     housing.scale.set(0.085, 0.048, 0.075);
-    housing.position.set(s * 0.985, 0.955, 0.50); housing.rotation.z = -s * 0.08; housing.castShadow = true;
+    housing.position.set(s * 0.955, 0.93, 0.62); housing.rotation.z = -s * 0.08; housing.castShadow = true;
     car.add(housing);
     const glassM = new THREE.Mesh(new THREE.CircleGeometry(1, 24), chrome);
-    glassM.scale.set(0.078, 0.042, 1); glassM.position.set(s * 0.985, 0.955, 0.479); glassM.rotation.y = Math.PI; car.add(glassM);
+    glassM.scale.set(0.078, 0.042, 1); glassM.position.set(s * 0.955, 0.93, 0.599); glassM.rotation.y = Math.PI; car.add(glassM);
     const stalk = new THREE.Mesh(new RoundedBoxGeometry(0.16, 0.03, 0.05, 2, 0.012), trim);
-    stalk.position.set(s * 0.88, 0.925, 0.52); stalk.rotation.z = s * 0.25; car.add(stalk);
+    stalk.position.set(s * 0.875, 0.89, 0.65); stalk.rotation.z = s * 0.35; car.add(stalk);
   }
   // wiper
   {
     const w = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.012, 0.018), matte);
-    w.position.set(-0.05, CT(0.74) + 0.005, 0.72); w.rotation.set(-0.42, 0.06, 0); car.add(w);
+    w.position.set(-0.05, CT(0.86) + 0.005, 0.84); w.rotation.set(-0.42, 0.06, 0); car.add(w);
   }
 
   // ---- wheels
@@ -527,15 +575,30 @@ export function build(ctx) {
       car.add(wg);
       // wheel-well liner + wall cover
       const a = ARCHES[key === 'f' ? 0 : 1];
-      const lg = new THREE.CylinderGeometry(a.R - 0.004, a.R - 0.004, 0.42, 36, 1, true, Math.PI / 2 - Math.PI * 0.62, Math.PI * 1.24);
+      const lg = new THREE.CylinderGeometry(a.R - 0.006, a.R - 0.006, 0.93 - a.xin, 36, 1, true, Math.PI / 2 - Math.PI * 0.56, Math.PI * 1.12);
       lg.rotateZ(Math.PI / 2);
       const liner = new THREE.Mesh(lg, linerMat);
-      liner.position.set(s * (a.xin + 0.2), a.y, a.z);
+      liner.position.set(s * (a.xin + 0.93) / 2, a.y, a.z);
       car.add(liner);
       const cover = new THREE.Mesh(new THREE.CircleGeometry(a.R, 40), linerMat);
       cover.position.set(s * (a.xin + 0.003), a.y, a.z); cover.rotation.y = Math.PI / 2;
       car.add(cover);
     }
+  }
+
+  // ---- arch lips: a rolled edge that hides the carved grid and catches a highlight
+  for (const a of ARCHES) for (const [pl, s] of [[PL.R, 1], [PL.L, -1]]) {
+    const pts = [];
+    for (let k = 0; k <= 48; k++) {
+      const th = -0.4 + (Math.PI + 0.8) * k / 48;
+      const z = a.z + (a.R + 0.01) * Math.cos(th), y = a.y + (a.R + 0.01) * Math.sin(th);
+      if (y < Y0(z) + 0.035) continue;
+      const h = hitPt(pl, z, y);
+      if (h) pts.push(h.addScaledVector(pl.D, 0.006));
+    }
+    if (pts.length < 4) continue;
+    const lip = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 120, 0.012, 12, false), paint);
+    lip.castShadow = hi; car.add(lip);
   }
 
   // ---- charge port (+x rear quarter) and hover headlight glow
@@ -564,7 +627,7 @@ export function build(ctx) {
       roundRect(g, w * 0.24, h * 0.16, w * 0.52, h * 0.68, 30); g.fill();
       g.filter = 'blur(5px)';
       g.fillStyle = 'rgba(0,0,0,0.85)';
-      const wz = (z) => h * (0.5 - z / 5.6);
+      const wz = (z) => h * (0.5 + z / 5.6); // canvas top = plane +y = world -z
       const wx = (x) => w * (0.5 + x / 2.8);
       for (const [x, z, ww] of [[0.82, AXF, 0.24], [-0.82, AXF, 0.24], [0.8, AXR, 0.3], [-0.8, AXR, 0.3]]) {
         g.fillRect(wx(x) - (ww / 2.8 * w) / 2, wz(z) - 14, ww / 2.8 * w, 28);
@@ -806,21 +869,24 @@ function roundRect(g, x, y, w, h, r) {
 // Reflection environment for the car: a dim garage box with strip lights over
 // the car, a dusk-blue door opening to the front and a warm glow at the back.
 function buildEnv(renderer) {
+  // Coordinates are relative to the car centre at ~0.6 m height, matching the
+  // garage: walls x -4.5..2.7, back wall z -3.8, door plane z +3.4, ceiling +2.3.
   const s = new THREE.Scene();
-  const room = new THREE.Mesh(new THREE.BoxGeometry(12, 5, 16), new THREE.MeshBasicMaterial({ color: 0x15171b, side: THREE.BackSide }));
-  room.position.y = 1.6; s.add(room);
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(12, 16), new THREE.MeshBasicMaterial({ color: 0x24262a }));
-  floor.rotation.x = -Math.PI / 2; floor.position.y = -0.55; s.add(floor);
+  const room = new THREE.Mesh(new THREE.BoxGeometry(7.2, 2.9, 7.2), new THREE.MeshBasicMaterial({ color: 0x2a2724, side: THREE.BackSide }));
+  room.position.set(-0.9, 0.85, -0.2); s.add(room);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(7.2, 7.2), new THREE.MeshBasicMaterial({ color: 0x4a4744 }));
+  floor.rotation.x = -Math.PI / 2; floor.position.set(-0.9, -0.59, -0.2); s.add(floor);
   const emis = (w, h, col, k) => new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(col).multiplyScalar(k), side: THREE.DoubleSide }));
-  for (const [x, z] of [[-0.9, 0.2], [0.9, 0.2], [-0.9, -2.8], [0.9, -2.8]]) {
-    const st = emis(0.16, 2.4, 0xfff6ea, 14); st.rotation.x = Math.PI / 2; st.position.set(x, 2.25, z); s.add(st);
+  for (const [x, z] of [[-2.5, -0.95], [0.7, -0.95], [-2.5, -2.9], [0.7, -2.9]]) {
+    for (const dx of [-0.035, 0.035]) { const st = emis(0.03, 1.18, 0xfff3e4, 40); st.rotation.x = Math.PI / 2; st.position.set(x + dx, 2.1, z); s.add(st); }
+    const glow = emis(0.3, 1.3, 0xfff3e4, 2.5); glow.rotation.x = Math.PI / 2; glow.position.set(x, 2.12, z); s.add(glow);
   }
-  const cross = emis(2.6, 0.14, 0xfff6ea, 10); cross.rotation.x = Math.PI / 2; cross.position.set(0, 2.25, 2.6); s.add(cross);
-  const door = emis(5.5, 2.3, 0x33507e, 1.4); door.position.set(0, 0.6, 7.9); door.rotation.y = Math.PI; s.add(door);
-  const sky = emis(5.5, 0.8, 0x6d8fc4, 1.6); sky.position.set(0, 2.1, 7.9); sky.rotation.y = Math.PI; s.add(sky);
-  const warm = emis(1.2, 0.5, 0xff7a3c, 3); warm.position.set(0.5, 1.8, -7.9); s.add(warm);
-  const bench = emis(1.8, 0.6, 0xffe2b8, 3); bench.position.set(-5.9, 1.3, 0.5); bench.rotation.y = Math.PI / 2; s.add(bench);
-  const side = emis(0.6, 1.4, 0xbfe8ff, 1.2); side.position.set(5.9, 1.0, 1.0); side.rotation.y = -Math.PI / 2; s.add(side);
+  const door = emis(5.5, 2.35, 0x2a3f66, 1.1); door.position.set(-0.9, 0.57, 3.39); s.add(door);
+  const sky = emis(5.5, 0.5, 0x5f7fb8, 1.5); sky.position.set(-0.9, 1.5, 3.38); s.add(sky);
+  const street = emis(1.2, 0.5, 0xffc27a, 5); street.position.set(-2.2, 1.0, 3.37); s.add(street);
+  const neon = emis(1.3, 0.25, 0xff4a3a, 6); neon.position.set(0.5, 1.75, -3.79); s.add(neon);
+  const bench = emis(1.8, 0.5, 0xffe2b8, 2); bench.position.set(-4.49, 0.9, -0.1); bench.rotation.y = Math.PI / 2; s.add(bench);
+  const charger = emis(0.12, 0.12, 0x44ff99, 6); charger.position.set(2.68, 0.65, 1.4); charger.rotation.y = -Math.PI / 2; s.add(charger);
   const pm = new THREE.PMREMGenerator(renderer);
   const rt = pm.fromScene(s, 0.012);
   pm.dispose();

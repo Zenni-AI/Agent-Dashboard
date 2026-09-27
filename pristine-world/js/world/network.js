@@ -12,7 +12,7 @@ export function build(ctx) {
   const jit = (a) => (R() * 2 - 1) * a;
 
   // ---- Placement -----------------------------------------------------------
-  const K = 1.5;                               // chord depth across the corner
+  const K = 1.3;                               // chord depth across the corner
   const HUB = new THREE.Vector3(3.6 - K / 2, 2.2, -7.2 + K / 2);
   const EDGE = K / Math.SQRT2;                 // |u| where the walls meet the web plane
   const CEIL = 2.9 - HUB.y;                    // ceiling height in local v
@@ -25,21 +25,32 @@ export function build(ctx) {
   const toWorld = (u, v, w = 0) => root.localToWorld(new THREE.Vector3(u, v, w));
   // Wall anchor helpers (w < 0 = toward the corner, so anchors sit slightly off-plane).
   const onRight = (v, w) => [EDGE + w - 0.004, v, w];
-  const onBack = (v, w) => [-EDGE - w + 0.004, v, w];
+  // The neon sign board (garage.js) covers the back wall at x < 2.53, y 2.05..2.65:
+  // threads that would land there are tied to the board's right edge instead.
+  const onBack = (v, w) => {
+    const p = [-EDGE - w + 0.004, v, w];
+    const wp = toWorld(...p);
+    if (wp.y > 2.02 && wp.y < 2.68 && wp.x < 2.56) {
+      const lp = root.worldToLocal(new THREE.Vector3(2.545, wp.y, -7.165));
+      return [lp.x, lp.y, lp.z];
+    }
+    return p;
+  };
 
   // ---- Frame polygon (the outer bridge threads around the capture area) ----
+  const US = K / 1.5;                          // horizontal scale of the frame polygon
   const frame = [
     [0.16, 0.6], [0.74, 0.42], [0.86, -0.14], [0.44, -0.6],
     [-0.36, -0.6], [-0.85, -0.1], [-0.6, 0.47],
-  ];
+  ].map(([u, v]) => [u * US, v]);
   const moorings = [
-    [0, [0.26, CEIL, -0.07]], [0, [-0.12, CEIL, -0.04]],
-    [1, onRight(0.52, -0.1)], [1, [0.86, CEIL, -0.2]],
+    [0, [0.24, CEIL, -0.07]], [0, [-0.1, CEIL, -0.04]],
+    [1, onRight(0.52, -0.1)], [1, [0.74, CEIL, -0.18]],
     [2, onRight(-0.2, -0.04)],
     [3, onRight(-0.66, -0.22)],
     [4, onBack(-0.68, -0.2)],
     [5, onBack(0.02, -0.05)],
-    [6, onBack(0.6, -0.12)], [6, [-0.72, CEIL, -0.1]],
+    [6, onBack(0.6, -0.12)], [6, [-0.62, CEIL, -0.1]],
   ];
   // Distance from hub to the frame polygon along angle th.
   function frameR(th) {
@@ -66,11 +77,14 @@ export function build(ctx) {
   // ---- Threads -------------------------------------------------------------
   const pos = [], wts = [], col = [];
   const LIGHT_ANG = 0.95;       // in-plane direction that "catches" the garage light
+  // Light catches the silk in patches: a smooth brightness field over the web.
+  const patch = (u, v) => 0.7 + 0.45 * Math.sin(u * 4.1 + 0.7) * Math.sin(v * 5.3 - 0.4) + 0.2 * Math.sin(u * 9.7 + v * 7.1);
   function seg(a, b, wa, wb, bright = 1) {
     const ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
+    bright *= Math.max(0.35, patch((a[0] + b[0]) / 2, (a[1] + b[1]) / 2));
     const glint = Math.pow(Math.abs(Math.cos(ang - LIGHT_ANG)), 8);
     const g = glint * (0.5 + 0.5 * R());
-    const alpha = Math.min(1, (0.2 + 0.7 * g) * bright * (0.8 + 0.4 * R()));
+    const alpha = Math.min(1, (0.13 + 0.8 * g) * bright * (0.8 + 0.4 * R()));
     const k = 0.85 + 0.6 * g;
     pos.push(a[0], a[1], a[2] ?? 0, b[0], b[1], b[2] ?? 0);
     wts.push(wa, wb);
@@ -150,6 +164,17 @@ export function build(ctx) {
     }
     prev = p;
   }
+  // A few broken spiral ends hanging loose under gravity.
+  for (let i = 0; i < 7; i++) {
+    const [a] = spiralSegs[Math.floor(R() * spiralSegs.length)];
+    const len = 0.03 + R() * 0.07;
+    let p0 = a, w0 = weightAt(a[0], a[1]);
+    for (let k = 1; k <= 4; k++) {
+      const p1 = [a[0] + (R() - 0.5) * 0.01 * k, a[1] - (len * k) / 4, 0.002 * k];
+      seg(p0, p1, w0, w0, 1.1);
+      p0 = p1;
+    }
+  }
   // Hub: a tight, messy meshwork.
   let hp = null;
   for (let j = 0; j < 5 * 11; j++) {
@@ -173,6 +198,12 @@ export function build(ctx) {
   threads.raycast = () => {};
   threads.renderOrder = 2;
   root.add(threads);
+  // From far away (the street) thousands of 1px lines alias into a solid patch: thin them out.
+  const _cp = new THREE.Vector3();
+  threads.onBeforeRender = (r, sc, cam) => {
+    const d = cam.getWorldPosition(_cp).distanceTo(HUB);
+    threadMat.opacity = THREE.MathUtils.clamp(1.25 - d * 0.06, 0.35, 1);
+  };
   const weights = new Float32Array(wts);
 
   // Displacement of the web at local (u, v) with sway weight w, time t.

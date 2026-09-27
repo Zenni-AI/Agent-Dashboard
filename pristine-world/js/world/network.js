@@ -69,10 +69,12 @@ export function build(ctx) {
   function seg(a, b, wa, wb, bright = 1) {
     const ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
     const glint = Math.pow(Math.abs(Math.cos(ang - LIGHT_ANG)), 8);
-    const k = (0.22 + 0.85 * glint * (0.6 + 0.4 * R())) * bright;
+    const g = glint * (0.5 + 0.5 * R());
+    const alpha = Math.min(1, (0.2 + 0.7 * g) * bright * (0.8 + 0.4 * R()));
+    const k = 0.85 + 0.6 * g;
     pos.push(a[0], a[1], a[2] ?? 0, b[0], b[1], b[2] ?? 0);
     wts.push(wa, wb);
-    for (let i = 0; i < 2; i++) col.push(0.86 * k, 0.9 * k, k);
+    for (let i = 0; i < 2; i++) col.push(0.93 * k, 0.95 * k, k, alpha);
   }
   // Polyline with gravity sag (sags in -v, proportional to horizontal span).
   function sagLine(a, b, wa, wb, n, sagAmt, bright) {
@@ -161,11 +163,10 @@ export function build(ctx) {
   const base = new Float32Array(pos);
   const threadGeo = new THREE.BufferGeometry();
   threadGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
-  threadGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(col), 3));
+  threadGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(col), 4));
   threadGeo.getAttribute('position').setUsage(THREE.DynamicDrawUsage);
   const threadMat = new THREE.LineBasicMaterial({
-    vertexColors: true, transparent: true, opacity: 0.9,
-    blending: THREE.AdditiveBlending, depthWrite: false,
+    vertexColors: true, transparent: true, opacity: 1, depthWrite: false,
   });
   const threads = new THREE.LineSegments(threadGeo, threadMat);
   threads.frustumCulled = false;
@@ -184,8 +185,9 @@ export function build(ctx) {
   const NDROP = low ? 260 : 720;
   const dropGeo = new THREE.SphereGeometry(1, low ? 8 : 12, low ? 6 : 10);
   const dropMat = new THREE.MeshPhysicalMaterial({
-    color: 0x3a4a58, roughness: 0.03, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.02,
-    emissive: 0xd8ecff, emissiveIntensity: 0.22, envMapIntensity: 2.2, ior: 1.33,
+    color: 0xdfe8ee, roughness: 0.02, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.02,
+    emissive: 0xe4f1ff, emissiveIntensity: 0.18, envMapIntensity: 3, ior: 1.33,
+    transparent: true, opacity: 0.55, depthWrite: false,
   });
   dropMat.onBeforeCompile = (sh) => {
     sh.fragmentShader = sh.fragmentShader.replace(
@@ -280,14 +282,22 @@ export function build(ctx) {
   }
 
   function makeLabel(text, u, v) {
-    const { texture, aspect } = tex.label(text, {
-      font: '600 58px "Inter", "Helvetica Neue", Arial, sans-serif',
-      color: '#efe6d2', height: 92, pad: 14,
-    });
+    const font = '600 54px "Inter", "Helvetica Neue", Arial, sans-serif';
+    const probe = document.createElement('canvas').getContext('2d');
+    probe.font = font;
+    const W = Math.ceil(probe.measureText(text).width) + 44, H = 84;
+    const texture = tex.canvasTexture(W, H, (g) => {
+      g.fillStyle = 'rgba(12,14,18,0.55)';
+      g.beginPath(); g.roundRect(2, 8, W - 4, H - 16, (H - 16) / 2); g.fill();
+      g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = '#f1e7d0';
+      g.fillText(text, W / 2, H / 2 + 2);
+    }, { wrap: false });
+    const aspect = W / H;
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: texture, transparent: true, opacity: 0.72, depthWrite: false,
+      map: texture, transparent: true, opacity: 0.85, depthWrite: false,
     }));
-    const h = 0.03;
+    const h = 0.036;
     sp.scale.set(h * aspect, h, 1);
     sp.center.set(0, 0.5);
     sp.position.set(u + 0.022, v - 0.004, 0.012);
@@ -334,6 +344,7 @@ export function build(ctx) {
   const spider = new THREE.Group();
   spider.name = 'spider';
   spider.position.set(0, 0.004, 0.007);
+  spider.scale.setScalar(1.35);
   root.add(spider);
 
   const abdomenTex = tex.canvasTexture(512, 256, (g, w, h) => {
@@ -383,8 +394,8 @@ export function build(ctx) {
   spider.add(abd);
   // Shoulder humps typical of orb-weavers
   for (const s of [-1, 1]) {
-    const hump = new THREE.Mesh(new THREE.SphereGeometry(0.0045, 12, 10), abdMat);
-    hump.position.set(s * 0.009, 0.006, 0.017);
+    const hump = new THREE.Mesh(new THREE.SphereGeometry(0.0032, 12, 10), abdMat);
+    hump.position.set(s * 0.0095, 0.004, 0.015);
     spider.add(hump);
   }
   const pedicel = new THREE.Mesh(new THREE.CylinderGeometry(0.0022, 0.0026, 0.006, 8), chitin);
@@ -421,7 +432,7 @@ export function build(ctx) {
     holder.add(baseG);
     const parts = isPalp
       ? [[0.5, -0.5, 0.0011, 0.0009], [0.5, 0.7, 0.0009, 0.0007]]
-      : [[0.3, -0.85, 0.0016, 0.0013], [0.1, 1.15, 0.0013, 0.0012], [0.25, 0.35, 0.0012, 0.0009], [0.35, 0.32, 0.0009, 0.0004]];
+      : [[0.3, -0.62, 0.0016, 0.0013], [0.1, 0.82, 0.0013, 0.0012], [0.27, 0.2, 0.0012, 0.0009], [0.33, 0.16, 0.0009, 0.0004]];
     let parent = baseG;
     const joints = [];
     parts.forEach(([f, bend, r0, r1], i) => {
@@ -446,7 +457,7 @@ export function build(ctx) {
   // Spider hangs head-down (head at -y). Angles measured from +x in the web plane.
   // Right-side legs are built once per side; the left side is a mirrored holder.
   const legDefs = [
-    [-62, 0.066, -0.016], [-24, 0.06, -0.013], [22, 0.04, -0.01], [58, 0.052, -0.007],
+    [-72, 0.074, -0.016], [-36, 0.066, -0.013], [18, 0.042, -0.01], [52, 0.056, -0.007],
   ];
   for (const side of [1, -1]) {
     const holder = new THREE.Group();

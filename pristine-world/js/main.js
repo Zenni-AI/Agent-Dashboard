@@ -83,7 +83,7 @@ async function boot() {
   outline.visibleEdgeColor.set(0xf4a62a);
   outline.hiddenEdgeColor.set(0x5a3a08);
   composer.addPass(outline);
-  const bloom = new UnrealBloomPass(new THREE.Vector2(W / 2, H / 2), 0.42, 0.55, 0.86);
+  const bloom = new UnrealBloomPass(new THREE.Vector2(W / 2, H / 2), 0.26, 0.5, 0.94);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
 
@@ -276,7 +276,7 @@ async function boot() {
       const x = (_p.x + 1) / 2 * W, y = (1 - _p.y) / 2 * H;
       h.el.style.setProperty('--x', `${x.toFixed(1)}px`);
       h.el.style.setProperty('--y', `${(y - 14).toFixed(1)}px`);
-      h.el.classList.toggle('left', x > W * 0.74);
+      h.sx = x; h.sy = y;
       const dist = camera.position.distanceTo(h.anchor);
       h.distEl.textContent = `${dist.toFixed(1)} m`;
       if ((frameNo + h.anchor.x * 7) % 15 < 1) {
@@ -286,6 +286,17 @@ async function boot() {
         h.el.classList.toggle('occluded', !!hit);
       }
     }
+    // Keep labels on screen and off each other: flip a label to the left of its
+    // diamond when it would run off the right edge or collide with a neighbour.
+    const vis = hotspots.filter((h) => h.active && !h.el.classList.contains('off')).sort((a, b) => a.sx - b.sx);
+    for (const h of vis) { h.w = h.el.offsetWidth || h.w || 160; h.flip = h.sx + h.w > W - 16; }
+    for (let i = 0; i < vis.length; i++) {
+      for (let j = i + 1; j < vis.length; j++) {
+        const a = vis[i], b = vis[j];
+        if (Math.abs(a.sy - b.sy) < 36 && !a.flip && a.sx + a.w > b.sx - 8 && a.sx - a.w > 16) a.flip = true;
+      }
+    }
+    for (const h of vis) h.el.classList.toggle('left', h.flip);
   }
   function isSolid(o) {
     if (o.isLine || o.isPoints || o.isSprite) return false;
@@ -329,8 +340,15 @@ async function boot() {
   }
 
   // ---------- Navigation ----------
+  // Input that arrives mid-move is queued, not dropped.
+  let pendingGo = null;
+  function settle() {
+    busy = false;
+    if (pendingGo) { const k = pendingGo; pendingGo = null; go(k); }
+  }
   async function go(key) {
-    if (!VIEWS[key] || busy) return;
+    if (!VIEWS[key]) return;
+    if (busy) { pendingGo = key; return; }
     if (key === view && mode === 'view') return;
     busy = true;
     hidePanel();
@@ -339,8 +357,9 @@ async function boot() {
     const via = mode === 'item' ? [VIEWS[view].pos, ...route(view, key)] : route(view, key);
     captionOut();
     await travelTo(V3(v.pos), V3(v.target), viewFov(v), { via, walk: true });
-    view = key; mode = 'view'; busy = false;
+    view = key; mode = 'view';
     arrive();
+    settle();
   }
 
   async function focusItem(h, key) {
@@ -359,7 +378,7 @@ async function boot() {
     showPanel(key);
     rig.dragYaw = rig.dragPitch = 0;
     await travelTo(pos, c, fov, { walk: false });
-    busy = false;
+    settle();
   }
 
   async function returnToView() {
@@ -367,7 +386,8 @@ async function boot() {
     busy = true;
     const v = VIEWS[view];
     await travelTo(V3(v.pos), V3(v.target), viewFov(v), { walk: false });
-    mode = 'view'; busy = false;
+    mode = 'view';
+    settle();
   }
 
   function stepBack() {
@@ -507,6 +527,7 @@ async function boot() {
     const cta = $('cap-cta');
     cta.hidden = !c.cta;
     if (c.cta) { cta.textContent = c.cta.label; cta.dataset.do = c.cta.do; }
+    cap.classList.toggle('compact', view !== 'garage');
     cap.classList.remove('swap');
   }
   $('cap-cta').addEventListener('click', (e) => {

@@ -100,9 +100,11 @@
   }
   .caption p.sub { margin: 12px 0 0; max-width: 40ch; color: #d6d0c3; text-shadow: 0 1px 12px rgba(0, 0, 0, .8); }
   .caption .btn { margin-top: 16px; pointer-events: auto; }
+  .caption.compact h1 { font-size: clamp(28px, 3vw, 42px); }
+  .caption.compact p.sub { max-width: 34ch; font-size: 14px; }
 
   /* ---------- 3D markers ---------- */
-  #markers { position: fixed; inset: 0; z-index: 8; pointer-events: none; }
+  #markers { position: fixed; inset: 0; z-index: 11; pointer-events: none; }
   .marker {
     position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 8px;
     pointer-events: auto; cursor: pointer; background: none; border: 0; padding: 0;
@@ -125,7 +127,7 @@
   }
   .marker .tag b { font: 600 12px/1.15 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: #fbeed2; }
   .marker .tag i { font: 400 10px/1.2 var(--mono); font-style: normal; color: var(--muted); letter-spacing: .08em; }
-  .marker.left { flex-direction: row-reverse; }
+  .marker.left { flex-direction: row-reverse; transform: translate3d(var(--x), var(--y), 0) translateX(-100%); }
   .marker.left .dia { margin-left: 0; margin-right: -7px; }
   .marker.occluded { opacity: .38; }
   .marker.off { opacity: 0; pointer-events: none; }
@@ -295,7 +297,7 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .marker .dia::after { animation: none; }
-    .panel, .caption { transition-duration: .01s; }
+    .panel, .panel.open, .caption { transition-duration: .01s; }
   }
 </style>
 <script type="importmap">

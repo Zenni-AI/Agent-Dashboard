@@ -21,8 +21,11 @@ export function build(ctx) {
     g.drawImage(c, 0, 0, w, h);
   }
   const SHADOW = HIGH ? 2048 : 1024;
-  const DBG = new URLSearchParams(location.search).get('dbg') || '';
   RectAreaLightUniformsLib.init();
+  for (const k of ['LTC_FLOAT_1', 'LTC_FLOAT_2', 'LTC_HALF_1', 'LTC_HALF_2']) {
+    const t = THREE.UniformsLib[k];
+    if (t && t.minFilter !== THREE.LinearFilter) { t.minFilter = THREE.LinearFilter; t.needsUpdate = true; }
+  }
 
 
   const root = new THREE.Group();
@@ -226,9 +229,10 @@ export function build(ctx) {
     gr.addColorStop(0, 'rgba(70,58,44,0.35)'); gr.addColorStop(0.35, 'rgba(70,58,44,0.12)'); gr.addColorStop(1, 'rgba(70,58,44,0)');
     g.fillStyle = gr; g.fillRect(0, h - gb, w, gb);
     for (let i = 0; i < 26; i++) {
-      g.strokeStyle = `rgba(40,35,30,${0.05 + r() * 0.12})`; g.lineWidth = 1 + r() * 3;
-      const x = r() * w, y = h - (0.12 + r() * 0.6) * (h / 2.9);
-      g.beginPath(); g.moveTo(x, y); g.lineTo(x + 10 + r() * 50, y + (r() - 0.5) * 8); g.stroke();
+      if (i > 10) break;
+      g.strokeStyle = `rgba(50,44,38,${0.03 + r() * 0.06})`; g.lineWidth = 2 + r() * 5; g.lineCap = 'round';
+      const x = r() * w, y = h - (0.08 + r() * 0.45) * (h / 2.9);
+      g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 20 + r() * 40, y + (r() - 0.5) * 20, x + 30 + r() * 90, y + (r() - 0.5) * 14); g.stroke();
     }
     pixNoise(g, w, h, 0.035, 34);
   });
@@ -484,7 +488,7 @@ export function build(ctx) {
   const M = {
     floor: std({ map: floorMap, roughnessMap: floorRough, roughness: 1, metalness: 0, envMapIntensity: 1.4 }),
     wall: std({ map: wallMap, roughness: 0.88 }),
-    ceil: std({ map: ceilMap, roughness: 0.92 }),
+    ceil: std({ map: ceilMap, roughness: 0.92, emissive: 0xfff4ea, emissiveMap: ceilMap, emissiveIntensity: 0 }),
     trimIn: std({ color: 0xf1efe9, roughness: 0.42 }),
     trimOut: std({ color: 0xf0eee8, roughness: 0.55 }),
     siding: std({ map: sidingMap, bumpMap: sidingBump, bumpScale: 2.2, roughness: 0.7 }),
@@ -689,9 +693,11 @@ export function build(ctx) {
     dimmers.push((v) => { M.lens.emissiveIntensity = 2.2 * v; });
   }
   const _pa = new THREE.Vector3(), _pb = new THREE.Vector3();
-  let doorU = 0;
+  let doorU = 0, portalRef = null;
+  const PORTAL_I = 70;
   function setDoor(u) {
     doorU = u;
+    if (portalRef) portalRef.intensity = PORTAL_I * lightsV * Math.min(1, u / OPEN_H);
     let top = null;
     for (let i = 0; i < NSEC; i++) {
       pathAt(i * SEC_H + u, _pa); pathAt((i + 1) * SEC_H + u, _pb);
@@ -729,41 +735,42 @@ export function build(ctx) {
         for (const dz of [-0.595, 0.595]) put(cyl(0.016, 0.016, 0.02, 10), M.plastic, [x + dx, FIX_Y - 0.012, z + dz], [Math.PI / 2, 0, 0], { cast: false });
       }
     }
-    dimmers.push((v) => { M.tube.emissiveIntensity = 9 * v; });
+    dimmers.push((v) => { M.tube.emissiveIntensity = 9 * v; M.ceil.emissiveIntensity = 0.2 * v; });
   }
   // Real lights inside the garage
   const interiorLights = [];
   function dimLight(l, base) { l.intensity = 0; interiorLights.push([l, base]); return l; }
   {
     // the ONE interior shadow caster
-    const spot = new THREE.SpotLight(0xffe6c8, 0, 0, 1.3, 1.0, 2);
+    const spot = new THREE.SpotLight(0xffe6c8, 0, 0, 1.0, 1.0, 2);
     spot.position.set(0.4, 2.62, -4.5);
     spot.target.position.set(0.4, 0, -3.9);
-    spot.castShadow = !DBG.includes('sh');
+    spot.castShadow = true;
     spot.shadow.mapSize.set(SHADOW, SHADOW);
     spot.shadow.camera.near = 0.2; spot.shadow.camera.far = 12;
-    spot.shadow.bias = -0.001; spot.shadow.normalBias = 0.06; spot.shadow.radius = 4;
+    spot.shadow.bias = -0.0008; spot.shadow.normalBias = 0.035; spot.shadow.radius = 4;
     root.add(spot, spot.target);
-    dimLight(spot, 46);
+    dimLight(spot, 60);
     shadowLights.push(spot);
     for (const x of [-1.6, 1.6]) {
       const ra = new THREE.RectAreaLight(0xffead2, 0, 0.3, 3.2);
       ra.position.set(x, FIX_Y - 0.03, -5.33);
       ra.rotation.x = -Math.PI / 2;
-      if (!DBG.includes('ra')) root.add(ra);
+      root.add(ra);
       dimLight(ra, 15);
     }
     // floor bounce: lifts the ceiling, upper walls and the underside of the open door
-    const bounce = new THREE.PointLight(0xffe6cc, 0, 8.5, 1.6);
+    const bounce = new THREE.PointLight(0xfff0e4, 0, 8.5, 1.6);
     bounce.position.set(0.2, 0.35, -2.8);
     root.add(bounce);
     dimLight(bounce, 4.5);
     // spill out of the door onto the driveway
-    const portal = new THREE.RectAreaLight(0xffdcb4, 0, 5.3, 2.3);
-    portal.position.set(0, 1.18, -0.35);
-    portal.lookAt(0, 1.18, 5);
-    if (!DBG.includes('ra')) root.add(portal);
-    dimLight(portal, 2.6);
+    // (a spot from deep inside, so the spill widens like a projection of the opening; no shadow)
+    const portal = new THREE.SpotLight(0xffdcb4, 0, 22, 0.62, 1.0, 2);
+    portal.position.set(0, 2.3, -4.2);
+    portal.target.position.set(0, 0, 6);
+    root.add(portal, portal.target);
+    portalRef = portal;
   }
 
   // ================================================================== NEON SIGN (back wall)
@@ -797,8 +804,8 @@ export function build(ctx) {
     root.add(plane);
     const glow = new THREE.PointLight(0xffa850, 0, 2.6, 2);
     glow.position.set(SX, SY, SZ + 0.35);
-    if (!DBG.includes('pt')) root.add(glow);
-    dimLight(glow, 0.8);
+    root.add(glow);
+    dimLight(glow, 0.35);
     dimmers.push((v) => mat.color.setScalar(2.2 * v));
   }
 
@@ -948,7 +955,7 @@ export function build(ctx) {
     const k = new THREE.Shape([[0, 0], [0, -0.115], [0.1, -0.115], [0.118, -0.088], [0.108, -0.062], [0.128, -0.035], [0.132, 0.005], [0.122, 0.005]].map(([x, y]) => new THREE.Vector2(x, y)));
     const gutGeo = new THREE.ExtrudeGeometry(k, { depth: RX1 - RX0 + 0.04, bevelEnabled: false });
     putM(gutGeo, M.gutter, new THREE.Matrix4().makeBasis(V(0, 0, 1), V(0, 1, 0), V(-1, 0, 0)).setPosition(RX1 + 0.02, EAVE_TOP - 0.03, EAVE_Z + 0.03));
-    for (const x of [RX0 + 0.25, 3.98, RX1 - 0.25]) {
+    for (const x of [RX0 + 0.25, 4.4, RX1 - 0.25]) {
       const pts = [V(x, 3.26, EAVE_Z + 0.09), V(x, 3.1, EAVE_Z + 0.09), V(x, 2.86, 0.08), V(x, 0.34, 0.08), V(x, 0.14, 0.34)];
       for (let i = 0; i < pts.length - 1; i++) {
         const al = along(pts[i], pts[i + 1]);
@@ -1027,11 +1034,13 @@ export function build(ctx) {
     root.add(glass);
     const pl = new THREE.PointLight(0xffb467, 2.4, 4.5, 2);
     pl.position.set(x, y - 0.02, lz + 0.05);
-    if (!DBG.includes('pt')) root.add(pl);
+    root.add(pl);
     exteriorLamps.push(pl);
   }
-  lantern(-3.27, 1.95, 0.02);
-  lantern(3.27, 1.95, 0.02);
+  // Mounted just outside the garage's side walls (|x| > 3.6) so the unshadowed point lights
+  // cannot reach the inside faces of those walls.
+  lantern(-3.82, 1.95, 0.02);
+  lantern(3.82, 1.95, 0.02);
   lantern(9.08, 1.8, 0.02, 0.85);
 
   // ================================================================== GROUND
@@ -1296,18 +1305,16 @@ export function build(ctx) {
 
   // ================================================================== GLOBAL LIGHTS
   {
-    const hemi = new THREE.HemisphereLight(0x6f84b8, 0x2b2620, 0.55);
+    const hemi = new THREE.HemisphereLight(0x6f84b8, 0x2b2620, 0.42);
     root.add(hemi);
     const moon = new THREE.DirectionalLight(0xa6b8ff, 0.6);
     moon.position.set(-14, 18, 16);
     moon.target.position.set(1, 0, -1);
-    moon.castShadow = !DBG.includes('sh');
+    moon.castShadow = true;
     moon.shadow.mapSize.set(SHADOW, SHADOW);
     const sc = moon.shadow.camera;
     sc.left = -24; sc.right = 24; sc.top = 24; sc.bottom = -24; sc.near = 1; sc.far = 80; sc.updateProjectionMatrix();
     moon.shadow.bias = -0.0008; moon.shadow.normalBias = 0.05;
-    if (DBG.includes('moon')) moon.intensity = 0;
-    if (DBG.includes('hemi')) hemi.intensity = 0;
     root.add(moon, moon.target);
     shadowLights.push(moon);
   }
@@ -1315,12 +1322,12 @@ export function build(ctx) {
   // ================================================================== ASSEMBLE
   flush();
   ctx.add(root);
-  { let t = 0, n = 0; root.traverse((o) => { if (o.isMesh) { n++; const g = o.geometry; t += (g.index ? g.index.count : g.attributes.position.count) / 3 * (o.count || 1); } }); console.log('garage meshes', n, 'tris', Math.round(t)); }
 
   // ================================================================== API
   function applyLights(v) {
     lightsV = Math.max(0, Math.min(1, v));
     for (const [l, base] of interiorLights) l.intensity = base * lightsV;
+    if (portalRef) portalRef.intensity = PORTAL_I * lightsV * Math.min(1, doorU / OPEN_H);
     for (const f of dimmers) f(lightsV);
   }
   applyLights(0);

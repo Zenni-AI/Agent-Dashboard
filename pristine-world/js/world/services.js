@@ -353,7 +353,7 @@ export function build(ctx) {
       }
     };
     const map = CT(256, 384, draw({
-      paint: '#5a1712', steel: '#8b8e91', scratch: 'rgba(220,222,225,0.45)', rust: 'rgba(125,64,28,0.85)',
+      paint: '#232826', steel: '#8b8e91', scratch: 'rgba(220,222,225,0.45)', rust: 'rgba(125,64,28,0.85)',
       dirt: (a) => `rgba(72,52,34,${a})`, dirt2: (a) => `rgba(120,95,68,${a})`,
     }), { wrap: false });
     const rm = CT(256, 384, draw({
@@ -422,8 +422,8 @@ export function build(ctx) {
       for (const bx of bridges) g.fillRect(bx - px * 0.035, 0, px * 0.07, h);
       for (let i = 0; i < 2600 * wear; i++) {
         g.fillStyle = `rgba(0,0,0,${0.3 + r() * 0.7})`;
-        const rr = 0.5 + r() * r() * 7;
-        g.beginPath(); g.arc(r() * w, r() * h, rr, 0, 7); g.fill();
+        const rr = 0.6 + r() * r() * r() * 7;
+        g.beginPath(); g.ellipse(r() * w, r() * h, rr * (0.6 + r()), rr * (0.3 + r() * 0.5), r() * 3, 0, 7); g.fill();
       }
       g.strokeStyle = 'rgba(0,0,0,0.8)';
       for (let i = 0; i < 60 * wear; i++) {
@@ -581,6 +581,7 @@ export function build(ctx) {
     greyPlastic: std({ color: 0x6a6d70, roughness: 0.6 }),
     yellowPlastic: std({ color: 0xe0b020, roughness: 0.45 }),
     orangePlastic: std({ map: surfaceTex('#d8641c', { seed: 83, dirt: 0.12 }), roughness: 0.5 }),
+    scoop: std({ color: 0xe0701f, roughness: 0.45, side: THREE.DoubleSide }),
     redPlastic: std({ map: surfaceTex('#b3261d', { seed: 84, dirt: 0.12 }), roughness: 0.45 }),
     whitePlastic: std({ map: surfaceTex('#e2dfd8', { seed: 85, dirt: 0.12 }), roughness: 0.55 }),
     greenNozzle: std({ color: 0x2f9a45, roughness: 0.45 }),
@@ -598,8 +599,8 @@ export function build(ctx) {
     fabricMesh: std({ map: surfaceTex('#2e3032', { seed: 90, grain: 0.3, dirt: 0.15, dirtColor: '60,70,30', extra: (g, w, h) => { g.strokeStyle = 'rgba(0,0,0,0.35)'; for (let i = 0; i < w; i += 4) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i + h, h); g.stroke(); } } }), roughness: 0.95 }),
     paver: std({ map: surfaceTex('#d2d0cc', { seed: 91, grain: 0.28, dirt: 0.12, light: 0.06, size: 256 }), roughness: 0.92 }),
     wrap: phys({ color: 0xe6edf2, transparent: true, opacity: 0.3, roughness: 0.12, side: THREE.DoubleSide, depthWrite: false, clearcoat: 0.6 }),
-    binBody: std({ map: surfaceTex('#26342a', { seed: 92, scratches: 90, dirt: 0.2, scratchColor: 'rgba(180,190,180,0.15)' }), roughness: 0.62 }),
-    binLid: std({ map: surfaceTex('#2c3b30', { seed: 93, scratches: 40, dirt: 0.15 }), roughness: 0.55 }),
+    binBody: std({ map: surfaceTex('#314638', { seed: 92, scratches: 90, dirt: 0.2, scratchColor: 'rgba(180,190,180,0.15)' }), roughness: 0.62 }),
+    binLid: std({ map: surfaceTex('#364c3d', { seed: 93, scratches: 40, dirt: 0.15 }), roughness: 0.55 }),
     binInside: std({ color: 0x0b0d0c, roughness: 1 }),
     cardboard: std({ map: surfaceTex('#9d774a', { seed: 94, grain: 0.15, dirt: 0.2 }), roughness: 0.9 }),
     dumpPaint: std({ map: dumpsterPaint(), roughness: 0.62, metalness: 0.2 }),
@@ -747,13 +748,13 @@ export function build(ctx) {
     for (const [p, d, len, rad, depth] of roots) grow(V(...p), V(...d).normalize(), len, rad, depth);
   }
   function leafMesh(list) {
-    const g = new THREE.PlaneGeometry(0.095, 0.07);
-    g.translate(0, 0.034, 0);
+    const g = new THREE.PlaneGeometry(0.12, 0.085);
+    g.translate(0, 0.04, 0);
     const im = new THREE.InstancedMesh(g, mat.leaf, list.length);
     const m = new THREE.Matrix4(), c = new THREE.Color();
     list.forEach((l, i) => {
       im.setMatrixAt(i, M(l.p.x, l.p.y, l.p.z, ...l.rot, l.s));
-      if (l.t < 0.75) c.setRGB(0.36 + l.t * 0.2, 0.52 + l.t * 0.12, 0.2, THREE.SRGBColorSpace);
+      if (l.t < 0.75) c.setRGB(0.42 + l.t * 0.2, 0.62 + l.t * 0.12, 0.24, THREE.SRGBColorSpace);
       else c.setRGB(0.62 + (l.t - 0.75) * 0.5, 0.55, 0.22, THREE.SRGBColorSpace);
       im.setColorAt(i, c);
     });
@@ -820,7 +821,7 @@ export function build(ctx) {
     b.add(board, mat.pegboard, M(UC, 1.0 + PEG_H / 2, 0.028));
     for (const s of [-1, 1]) {
       b.add(rbox(PEG_W + 0.09, 0.045, 0.02, 0.004), mat.pine, M(UC, 1.65 + s * (PEG_H / 2 + 0.0225), 0.035));
-      b.add(boxUV(rbox(0.045, PEG_H + 0.001, 0.02, 0.004), 1, 1).rotateZ(PI / 2).rotateZ(-PI / 2), mat.pine, M(UC + s * (PEG_W / 2 + 0.0225), 1.65, 0.035));
+      b.add(boxUV(rbox(0.045, PEG_H + 0.001, 0.02, 0.004), 1, 1), mat.pine, M(UC + s * (PEG_W / 2 + 0.0225), 1.65, 0.035));
     }
     // stencil sign
     b.add(rbox(0.66, 0.13, 0.012, 0.004), mat.blackPlastic, M(UC, 2.205, 0.037));
@@ -852,8 +853,15 @@ export function build(ctx) {
     b.push(M(4.42, 1.705, 0.05));
     b.add(cyl(0.013, 0.015, 0.12, 12), mat.ash, M(0, -0.06, 0));
     b.add(cyl(0.004, 0.004, 0.05, 6), mat.zinc, M(0, -0.14, 0.004));
-    const trowel = rbox(0.075, 0.15, 0.003, 0.0012); lumpify(trowel, 0, 1, 0, (x) => x * x * 1.2);
-    b.add(trowel, mat.blade, M(0, -0.24, 0.006));
+    const ts = new THREE.Shape();
+    ts.moveTo(-0.012, 0); ts.lineTo(0.012, 0); ts.bezierCurveTo(0.04, -0.01, 0.042, -0.06, 0.03, -0.11);
+    ts.quadraticCurveTo(0.012, -0.15, 0, -0.165); ts.quadraticCurveTo(-0.012, -0.15, -0.03, -0.11); ts.bezierCurveTo(-0.042, -0.06, -0.04, -0.01, -0.012, 0);
+    const trowel = new THREE.ExtrudeGeometry(ts, { depth: 0.002, bevelEnabled: false, curveSegments: 8 });
+    planarUV(trowel, 'x', 'y');
+    const tp = trowel.attributes.position;
+    for (let i = 0; i < tp.count; i++) tp.setZ(i, tp.getZ(i) + tp.getX(i) ** 2 * 3);
+    trowel.computeVertexNormals();
+    b.add(trowel, mat.blade, M(0, -0.16, 0.004));
     b.pop();
 
     // leaf blower on the bench
@@ -986,13 +994,20 @@ export function build(ctx) {
     b.pop();
     // gutter scoop (orange plastic)
     hook(b, 3.66, 1.72, 0.05);
-    b.push(M(3.66, 1.555, 0.06, 0, 0, 0.12));
-    const scoopProf = []; for (let i = 0; i <= 16; i++) { const a = PI * i / 16; scoopProf.push(V2(Math.cos(a) * 0.04, -Math.sin(a) * 0.035)); }
-    b.add(profileSweep(scoopProf, 0.16), mat.orangePlastic, M(0, -0.09, 0.02, PI / 2, 0, 0));
-    b.add(rbox(0.024, 0.16, 0.014, 0.006), mat.orangePlastic, M(0, 0.07, 0.02));
-    b.add(new THREE.TorusGeometry(0.012, 0.004, 6, 12), mat.orangePlastic, M(0, 0.155, 0.02));
-    const dirt = rbox(0.06, 0.04, 0.02, 0.008); lumpify(dirt, 0.006, 25, 4);
-    b.add(dirt, mat.gunk, M(0, -0.07, 0.035));
+    b.push(M(3.66, 1.62, 0.0, 0, 0, 0.1));
+    const scoopProf = []; for (let i = 0; i <= 18; i++) { const a = PI * i / 18; scoopProf.push(V2(Math.cos(a) * 0.045, -Math.sin(a) * 0.04)); }
+    const sc = profileSweep(scoopProf, 0.17);
+    const sp = sc.attributes.position; // taper the scoop toward its rounded front lip
+    for (let i = 0; i < sp.count; i++) { const t = sp.getZ(i) / 0.17; sp.setX(i, sp.getX(i) * (1 - 0.25 * t)); sp.setY(i, sp.getY(i) * (1 - 0.45 * t)); }
+    sc.computeVertexNormals();
+    b.push(M(0, 0, 0.055, -0.3, 0, 0));
+    b.add(sc, mat.scoop, M(0, -0.06, 0, PI / 2, 0, 0));
+    b.add(rbox(0.09, 0.012, 0.045, 0.004), mat.orangePlastic, M(0, -0.058, -0.02));
+    const dirt = rbox(0.06, 0.05, 0.025, 0.01); lumpify(dirt, 0.008, 25, 4);
+    b.add(dirt, mat.gunk, M(0, -0.16, -0.018));
+    b.pop();
+    b.add(rbox(0.026, 0.13, 0.016, 0.007), mat.orangePlastic, M(0, 0.01, 0.045));
+    b.add(new THREE.TorusGeometry(0.013, 0.0045, 6, 12), mat.orangePlastic, M(0, 0.085, 0.045));
     b.pop();
     const g = b.build({ name: 'svc-gutter' });
     wall.add(g);
@@ -1051,7 +1066,7 @@ export function build(ctx) {
     b.add(rbox(0.44, 0.03, 0.47, 0.012), mat.blackPlastic, M(0, 0.53, -0.53, 0.12, 0, 0));
     b.add(rbox(0.1, 0.03, 0.03, 0.01), mat.blackPlastic, M(0, 0.56, -0.74, 0.12, 0, 0));
     const g = b.build({ name: 'svc-mower' });
-    place(g, -2.95, 0, -1.72, 0, -2.2, 0);
+    place(g, -2.95, 0, -1.85, 0, PI + 0.35, 0);
     add(g);
     hotspot(g, { id: 'svc-lawn', views: { services: { item: 'lawn', label: 'Lawn care' } } });
   }
@@ -1149,7 +1164,8 @@ export function build(ctx) {
       p.setZ(i, p.getZ(i) * (0.8 + 0.2 * t) + (1 - t) * -0.04);
     }
     smoothNormals(body); boxUV(body, 1.5);
-    b.add(body, mat.binBody, M(0, 0.52, 0));
+    b.add(body, mat.binBody, M(0, 0.5, 0));
+    for (const s of [-1, 1]) b.add(rbox(0.1, 0.03, 0.06, 0.01), mat.binBody, M(s * 0.17, 0.015, 0.26));
     b.add(rbox(0.62, 0.05, 0.76, 0.015), mat.binBody, M(0, 0.99, 0));
     b.add(rbox(0.55, 0.004, 0.68, 0.002), mat.binInside, M(0, 1.016, 0.005));
     for (const x of [-0.12, 0.12]) b.add(rbox(0.05, 0.7, 0.02, 0.01), mat.binBody, M(x, 0.56, 0.34, -0.1, 0, 0));
@@ -1265,37 +1281,34 @@ export function build(ctx) {
     const main = stencilTex('PRISTINE', { seed: 31, h: 380 });
     const sub = stencilTex('JUNK REMOVAL · 20 YD', { seed: 32, h: 200, w: 2048, weight: 700 });
     const warn = labelPlate([['NO HAZARDOUS', 52], ['WASTE · NO PAINT', 44], ['NO TIRES', 44]]);
-    const addDecal = (m, w, h, x, y, z, ry, rx = 0) => {
-      const d = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m);
-      d.position.set(x, y, z); d.rotation.set(rx, ry, 0, 'YXZ'); d.receiveShadow = true;
-      dump.add(d);
-      return d;
-    };
+    // All decals merged per material (one draw call each).
+    const db = new Bag();
+    const addDecal = (m, w, h, x, y, z, ry, rx = 0, geo) => db.add(geo || new THREE.PlaneGeometry(w, h), m, M(x, y, z, rx, ry, 0, 1, 'YXZ'));
     // Side stencils are painted over the ribs too: the wall plane plus a cropped strip on each rib face.
     const RIBS = [-1.9, -1.27, -0.63, 0, 0.63, 1.27, 1.9];
-    const sideDecal = (m, w, h, y, s) => {
-      addDecal(m, w, h, s * 1.1213, y, 0, s * PI / 2);
+    const sideDecal = (m, w, h, y, s, zc = 0) => {
+      addDecal(m, w, h, s * 1.1213, y, zc, s * PI / 2);
       for (const z of RIBS) {
-        if (Math.abs(z) > w / 2 - 0.035) continue;
+        if (Math.abs(z - zc) > w / 2 - 0.035) continue;
         const pg = new THREE.PlaneGeometry(0.07, h);
         const uv = pg.attributes.uv;
         for (let i = 0; i < uv.count; i++) {
           const lx = (uv.getX(i) - 0.5) * 0.07; // local x offset of this vertex
           const wz = z - s * lx; // world z (local +x maps to -s*z)
-          uv.setX(i, 0.5 - s * wz / w);
+          uv.setX(i, 0.5 - s * (wz - zc) / w);
         }
-        const d = new THREE.Mesh(pg, m);
-        d.position.set(s * 1.1757, y, z); d.rotation.set(0, s * PI / 2, 0); d.receiveShadow = true;
-        dump.add(d);
+        addDecal(m, 0, 0, s * 1.1757, y, z, s * PI / 2, 0, pg);
       }
     };
     const mMain = decalMat(main), mSub = decalMat(sub);
     sideDecal(mMain, 3.3, 0.61, 0.98, 1);
-    sideDecal(mSub, 2.7, 0.26, 0.55, 1);
+    sideDecal(mSub, 2.7, 0.26, 0.55, 1, 0.16);
     sideDecal(mMain, 3.3, 0.61, 0.98, -1);
-    addDecal(std({ map: warn, roughness: 0.5 }), 0.34, 0.2, 1.1215, 0.55, -1.585, PI / 2);
+    addDecal(decalMat(warn, { transparent: false }), 0.34, 0.2, 1.1215, 0.55, -1.585, PI / 2);
     addDecal(mMain, 1.75, 0.28, 0, 1.0, zc(1.0) + 0.0158, 0, ra);
     addDecal(mSub, 1.7, 0.15, 0, 0.64, zc(0.64) + 0.0158, 0, ra);
+    const decals = db.build({ cast: false, name: 'dumpster-decals' });
+    dump.add(decals);
   }
 
   // ---- junk heap base + filler (not clickable individually)
@@ -1389,10 +1402,10 @@ export function build(ctx) {
     const b = new Bag();
     const leaves = [];
     branches(b, 7, [
-      [[0, 0, 0], [-0.35, 1, -0.25], 0.8, 0.04, 3],
-      [[0.05, 0, 0.05], [0.1, 0.9, -0.7], 0.75, 0.035, 3],
-      [[-0.05, 0, 0.1], [-0.8, 0.7, 0.35], 0.7, 0.032, 2],
-      [[0.1, 0, -0.05], [0.6, 1, 0.1], 0.6, 0.028, 2],
+      [[0, 0, 0], [-0.35, 1, -0.25], 1.0, 0.045, 3],
+      [[0.05, 0, 0.05], [0.1, 0.9, -0.7], 0.9, 0.04, 3],
+      [[-0.05, 0, 0.1], [-0.8, 0.7, 0.35], 0.8, 0.035, 2],
+      [[0.1, 0, -0.05], [0.7, 0.9, 0.5], 0.9, 0.035, 3],
     ], leaves);
     const g = b.build();
     g.add(leafMesh(leaves));

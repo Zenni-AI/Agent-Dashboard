@@ -955,7 +955,6 @@ export function build(ctx) {
     b.add(rbox(0.115, 0.022, 0.024, 0.008), mat.steelDark, M(0, 1.025, -0.004));
     b.pop();
     const g = b.build({ name: 'svc-shovel' });
-    // crossbar sleeve drawn last so wood shows between the steel tabs
     wall.add(g);
     hotspot(g, { id: 'svc-landscaping', views: { services: { item: 'landscaping', label: 'Landscaping' } } });
   }
@@ -1226,7 +1225,7 @@ export function build(ctx) {
       const g = new THREE.ExtrudeGeometry(side, { depth: 0.012, bevelEnabled: false });
       P(g, M(s > 0 ? 1.12 : -1.108, 0, 0, 0, -PI / 2, 0));
       // vertical ribs
-      for (const z of [-1.9, -1.27, -0.63, 0, 0.63, 1.27, 1.9]) P(rbox(0.055, TOP - FLOOR - 0.08, 0.085, 0.008), M(s * 1.147, (TOP + FLOOR) / 2 - 0.02, z));
+      for (const z of [-1.9, -1.27, -0.63, 0, 0.63, 1.27, 1.9]) P(rbox(0.045, TOP - FLOOR - 0.08, 0.085, 0.008), M(s * 1.1425, (TOP + FLOOR) / 2 - 0.02, z));
       // top rail and bottom sill
       P(rbox(0.1, 0.1, 5.04, 0.012), M(s * 1.155, 1.4, 0));
       P(rbox(0.08, 0.1, 4.64, 0.01), M(s * 1.145, FLOOR + 0.05, 0.11));
@@ -1297,12 +1296,12 @@ export function build(ctx) {
           const wz = z - s * lx; // world z (local +x maps to -s*z)
           uv.setX(i, 0.5 - s * (wz - zc) / w);
         }
-        addDecal(m, 0, 0, s * 1.1757, y, z, s * PI / 2, 0, pg);
+        addDecal(m, 0, 0, s * 1.1662, y, z, s * PI / 2, 0, pg);
       }
     };
     const mMain = decalMat(main), mSub = decalMat(sub);
     sideDecal(mMain, 3.3, 0.61, 0.98, 1);
-    sideDecal(mSub, 2.7, 0.26, 0.55, 1, 0.16);
+    sideDecal(mSub, 2.9, 0.3, 0.53, 1, 0.16);
     sideDecal(mMain, 3.3, 0.61, 0.98, -1);
     addDecal(decalMat(warn, { transparent: false }), 0.34, 0.2, 1.1215, 0.55, -1.585, PI / 2);
     addDecal(mMain, 1.75, 0.28, 0, 1.0, zc(1.0) + 0.0158, 0, ra);
@@ -1484,11 +1483,7 @@ export function build(ctx) {
     const vol = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.7, 5.3), new THREE.MeshBasicMaterial({ visible: false }));
     vol.position.set(0, 1.35, 0); vol.name = 'hot-dumpster-volume';
     dump.add(vol);
-    const body = dump.getObjectByName('dumpster-body');
-    const grp = new THREE.Group(); grp.name = 'dumpster-hot';
-    dump.add(grp); grp.add(vol);
-    hotspot(grp, { id: 'hot-dumpster', anchor: [DX, 2.75, DZ], views: { garage: { go: 'dumpster', label: 'Junk removal: every service' } } });
-    void body;
+    hotspot(vol, { id: 'hot-dumpster', anchor: [DX, 2.75, DZ], views: { garage: { go: 'dumpster', label: 'Junk removal: every service' } } });
   }
 
   wall.updateMatrixWorld(true);

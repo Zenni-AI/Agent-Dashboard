@@ -34,6 +34,7 @@ const browser = await chromium.launch({
 });
 const page = await browser.newPage({ viewport: { width: +W, height: +H } });
 const logs = [];
+if (process.env.RM) await page.emulateMedia({ reducedMotion: 'reduce' });
 page.on('console', (m) => { if (['error', 'warning'].includes(m.type())) logs.push(`[${m.type()}] ${m.text()}`); });
 page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`));
 await page.goto(`http://localhost:${port}/${target}`);

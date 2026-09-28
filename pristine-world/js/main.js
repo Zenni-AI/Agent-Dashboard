@@ -30,7 +30,7 @@ const quality = lowEnd ? 'low' : 'high';
 const D = WAYPOINTS.door, HUB = WAYPOINTS.hub;
 const APPROACH = {
   garage: [], dumpster: [], solar: [],
-  services: [D, HUB],
+  services: [D],
   about: [D, HUB, [-1.5, 1.62, -3.4]],
   network: [D, [2.65, 1.75, -0.45], [2.85, 1.8, -2.7]],
 };

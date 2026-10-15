@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>See Your Home Lit Up — Permanent Outdoor Lights Preview</title>
+  <meta name="description" content="Type your address and see a free preview of your house with Govee Permanent Outdoor Lights Pro installed.">
+  <meta property="og:title" content="See your home lit up — free preview">
+  <meta property="og:description" content="Type your address and see your house with permanent outdoor lights in about 30 seconds.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 18 16 7l12 11' fill='none' stroke='%23ffb547' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='8' cy='18' r='2' fill='%23ffb547'/%3E%3Ccircle cx='16' cy='10' r='2' fill='%23ff5f8f'/%3E%3Ccircle cx='24' cy='18' r='2' fill='%2357c7ff'/%3E%3C/svg%3E">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <div class="string-lights" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"></span><span data-bind="businessName">Bright Home Lighting</span></div>
+    <a class="topbar-phone" data-bind="phoneLink" hidden></a>
+  </header>
+
+  <main>
+    <!-- Step 1: the form -->
+    <section class="hero" id="step-form">
+      <div class="hero-copy">
+        <p class="eyebrow">Govee Permanent Outdoor Lights Pro</p>
+        <h1>See <em>your</em> home lit up — before you buy.</h1>
+        <p class="lede">Enter your address and we'll pull up your house and show you exactly how permanent roofline lights will look on it. Free, and it takes about 30 seconds.</p>
+        <ul class="perks">
+          <li><span aria-hidden="true">✦</span> Your actual house, not a stock photo</li>
+          <li><span aria-hidden="true">✦</span> Try holiday, seasonal and everyday looks</li>
+          <li><span aria-hidden="true">✦</span> No ladders, no more taking lights down</li>
+        </ul>
+      </div>
+
+      <form class="card lead-form" id="lead-form" novalidate>
+        <h2>Get your free preview</h2>
+
+        <label class="field">
+          <span>Full name</span>
+          <input name="name" autocomplete="name" required maxlength="100" placeholder="Jane Smith">
+        </label>
+        <div class="row">
+          <label class="field">
+            <span>Email</span>
+            <input name="email" type="email" autocomplete="email" required maxlength="254" placeholder="jane@example.com">
+          </label>
+          <label class="field">
+            <span>Phone</span>
+            <input name="phone" type="tel" autocomplete="tel" required maxlength="30" placeholder="(555) 123-4567">
+          </label>
+        </div>
+        <label class="field address-field">
+          <span>Home address</span>
+          <input name="address" id="address" autocomplete="street-address" required maxlength="200" placeholder="Start typing your address…"
+                 role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="address-suggestions">
+          <ul class="suggestions" id="address-suggestions" role="listbox" hidden></ul>
+        </label>
+        <input type="hidden" name="placeId">
+
+        <fieldset class="field">
+          <legend>Pick a look</legend>
+          <div class="themes" data-themes="form"></div>
+        </fieldset>
+
+        <div class="upload">
+          <label class="upload-toggle">
+            <input type="file" name="photo" accept="image/*" id="form-photo">
+            <span class="upload-btn">📷 Upload a photo of your house <small>(optional)</small></span>
+          </label>
+          <p class="hint" id="form-photo-name">No photo? No problem — we'll find your house from the street.</p>
+        </div>
+
+        <!-- Honeypot: hidden from people, irresistible to bots. -->
+        <label class="hp" aria-hidden="true">Website <input name="website" tabindex="-1" autocomplete="off"></label>
+
+        <label class="consent">
+          <input type="checkbox" name="consent" value="true" required>
+          <span>I agree that <b data-bind="businessName">Bright Home Lighting</b> may contact me by phone, text and email about my lighting design, including with automated technology. Consent isn't a condition of purchase. Msg &amp; data rates may apply; reply STOP to opt out.</span>
+        </label>
+
+        <p class="form-error" id="form-error" role="alert" hidden></p>
+        <button class="cta" type="submit" id="submit-btn">Show my house lit up <span aria-hidden="true">→</span></button>
+      </form>
+    </section>
+
+    <!-- Step 2: waiting -->
+    <section class="card progress" id="step-progress" hidden aria-live="polite">
+      <div class="bulbs" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <h2 id="progress-title">Finding your house…</h2>
+      <p id="progress-detail" class="muted">This usually takes 15–40 seconds.</p>
+      <ol class="stages">
+        <li data-stage="locating">Finding your house</li>
+        <li data-stage="rendering">Installing your lights</li>
+        <li data-stage="finishing">Final touches</li>
+      </ol>
+    </section>
+
+    <!-- Step 2b: we need a photo -->
+    <section class="card needs-photo" id="step-needs-photo" hidden>
+      <h2>Let's use your own photo</h2>
+      <p id="needs-photo-msg" class="muted"></p>
+      <label class="upload-toggle big">
+        <input type="file" accept="image/*" id="retry-photo">
+        <span class="cta">📷 Upload a photo of your house</span>
+      </label>
+      <p class="hint">Tip: stand across the street in daylight and get the whole roofline in the frame.</p>
+      <button class="link" type="button" id="retry-btn" hidden>Or try again</button>
+    </section>
+
+    <!-- Step 3: the result -->
+    <section class="result" id="step-result" hidden>
+      <div class="result-head">
+        <h2>Here's <span data-bind="firstName">your</span> home with permanent lights ✨</h2>
+        <p class="muted" id="result-address"></p>
+      </div>
+
+      <div class="compare" id="compare">
+        <img id="after-img" alt="Your house at dusk with permanent outdoor lights installed">
+        <div class="compare-before" id="before-wrap"><img id="before-img" alt="Your house as it looks today"></div>
+        <div class="compare-handle" id="compare-handle" aria-hidden="true"><span>⟷</span></div>
+        <input type="range" min="0" max="100" value="50" id="compare-range" aria-label="Drag to compare before and after">
+        <span class="tag tag-before">Before</span>
+        <span class="tag tag-after">After</span>
+        <div class="compare-busy" id="compare-busy" hidden><div class="bulbs small" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><span>Re-lighting…</span></div>
+      </div>
+
+      <div class="result-tools">
+        <div>
+          <p class="tool-label">Try another look <small class="muted" id="renders-left"></small></p>
+          <div class="themes" data-themes="result"></div>
+        </div>
+        <div class="result-actions">
+          <label class="upload-toggle">
+            <input type="file" accept="image/*" id="swap-photo">
+            <span class="ghost">Not your house? Upload a photo</span>
+          </label>
+          <a class="ghost" id="download-link" download="my-house-lit-up.jpg">Download image</a>
+        </div>
+        <p class="form-error" id="result-error" role="alert" hidden></p>
+      </div>
+
+      <div class="card cta-card">
+        <div>
+          <h3>Love how it looks?</h3>
+          <p>We'll reach out shortly with a free installation quote for your home. Want to talk now?</p>
+        </div>
+        <div class="cta-buttons">
+          <a class="cta" id="cta-call" hidden>Call us</a>
+          <a class="cta alt" id="cta-link" target="_blank" rel="noopener" hidden>Book a free quote</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="how" id="how">
+      <div><b>1</b><h3>Enter your address</h3><p>We pull up the street view of your home — or upload your own photo.</p></div>
+      <div><b>2</b><h3>We design your lights</h3><p>Permanent lights are placed along every roofline, just like a real install.</p></div>
+      <div><b>3</b><h3>See it at night</h3><p>Drag the slider to compare, switch colors, and get a free quote.</p></div>
+    </section>
+  </main>
+
+  <footer>
+    <p class="demo-note" id="demo-note" hidden>Demo mode: previews are placeholders until an AI key is configured.</p>
+    <p>Previews are AI-generated illustrations; actual results vary with your home and installation. Govee is a trademark of its owner. <span data-bind="businessName">Bright Home Lighting</span> is an independent installer.</p>
+  </footer>
+</body>
+</html>

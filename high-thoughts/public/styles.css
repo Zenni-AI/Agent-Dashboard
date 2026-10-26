@@ -988,3 +988,228 @@ textarea::placeholder { color: var(--ink-faint); }
 }
 
 .paywall[hidden] { display: none; }
+
+/* ── Milestone 1: interview, creation, idea ──────────────────────────────── */
+
+.talk {
+  display: block;
+  width: 100%;
+  margin-top: 11px;
+  padding: 10px;
+  border: 0;
+  background: none;
+  color: var(--ink-faint);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.talk:hover { color: var(--ink-dim); }
+
+/* The question is the biggest thing on the screen — it is the only thing
+ * being asked of them, and a small question invites a small answer. */
+.iv-question {
+  margin: 0 0 18px;
+  font-size: 25px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+#iv-answer {
+  width: 100%;
+  min-height: 84px;
+  margin-bottom: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: 17px;
+  resize: none;
+}
+
+#iv-answer:focus { outline: none; border-color: var(--glow); }
+#iv-answer::placeholder { color: var(--ink-faint); font-style: italic; }
+
+/* ── Creation ─────────────────────────────────────────────────────────── */
+
+.screen.wide { padding-left: 0; padding-right: 0; }
+.screen.wide > *:not(.preview-host) { margin-left: 18px; margin-right: 18px; }
+
+.making { margin: 24px 0; }
+
+.progress {
+  height: 3px;
+  margin-top: 16px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.progress span {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 2px;
+  background: linear-gradient(92deg, var(--glow), var(--glow-2));
+  transition: width 0.4s ease;
+}
+
+.preview-host { margin: 0; }
+
+.preview-frame {
+  display: block;
+  width: 100%;
+  height: 72dvh;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: #0b0a10;
+}
+
+.preview-failed {
+  margin: 30px 18px;
+  padding: 15px;
+  border: 1px solid var(--warn);
+  border-radius: var(--radius);
+  color: var(--warn);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.fit-warning {
+  margin: 12px 18px 0;
+  padding: 10px 13px;
+  border-radius: 10px;
+  background: rgba(255, 143, 107, 0.1);
+  color: var(--warn);
+  font-size: 12.5px;
+}
+
+.cr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.improve-form { margin-top: 14px; }
+
+.improve-form textarea {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  resize: none;
+}
+
+.improve-form textarea:focus { outline: none; border-color: var(--glow); }
+
+/* ── One idea, start to finish ────────────────────────────────────────── */
+
+.idea-title {
+  margin: 0 0 24px;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+/* A single rail down the left so the whole life of an idea reads as one
+ * thread rather than a stack of unrelated cards. */
+.tl { position: relative; padding-left: 22px; }
+
+.tl::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background: var(--line);
+}
+
+.tl-item { position: relative; margin-bottom: 26px; }
+
+.tl-item::before {
+  content: "";
+  position: absolute;
+  left: -21px;
+  top: 6px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--glow);
+}
+
+.tl-item.said::before { background: var(--ink-faint); }
+.tl-item.made::before { background: var(--glow-2); }
+
+.tl-when {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.tl-item.said .tl-body {
+  padding: 13px 15px;
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  font-size: 16px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.tl-q { margin: 0 0 4px; font-size: 14.5px; color: var(--glow-2); }
+.tl-a { margin: 0; font-size: 16px; }
+
+.tl-make {
+  display: block;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tl-make .thumb {
+  display: block;
+  width: 100%;
+  height: 128px;
+  border: 0;
+  pointer-events: none;
+  background: #0b0a10;
+}
+
+.tl-make .cap {
+  display: block;
+  padding: 10px 13px;
+  font-size: 13px;
+  border-top: 1px solid var(--line);
+}
+
+.tl-make .cap em { color: var(--ink-faint); font-style: normal; }
+
+.idea-actions { margin: 34px 0 10px; }
+
+.library-tools { margin-top: 26px; }

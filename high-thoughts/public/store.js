@@ -127,7 +127,103 @@ export function chainFor(thought) {
   };
 }
 
-/* ── Textbooks ──────────────────────────────────────────────────────────── */
+/* ── Interview answers ──────────────────────────────────────────────────── */
+
+/**
+ * Keep an answer. The original idea is never touched — `thought` is written
+ * once at capture and is the one thing in the record that must survive every
+ * later edit, because it is what the person actually said.
+ */
+export function addAnswer(id, question, answer) {
+  const thoughts = read();
+  const thought = thoughts.find((candidate) => candidate.id === id);
+  if (!thought) return null;
+
+  thought.answers = [...(thought.answers ?? []), { question, answer, at: Date.now() }].slice(0, 4);
+  write(thoughts);
+  return thought;
+}
+
+export function clearAnswers(id) {
+  const thoughts = read();
+  const thought = thoughts.find((candidate) => candidate.id === id);
+  if (!thought) return null;
+  thought.answers = [];
+  write(thoughts);
+  return thought;
+}
+
+/* ── Creations ──────────────────────────────────────────────────────────────
+ *
+ * Kept in their own collection rather than on the thought, because a creation
+ * is 20-25 KB of HTML and the thought list is read and rewritten constantly.
+ * Versions accumulate here too: a rebuild never replaces its predecessor, so
+ * "the one before I asked for the fix" is always recoverable.
+ */
+
+const MAKES_KEY = "high-thoughts/creations/v1";
+const MAX_CREATIONS = 40;
+
+function readMakes() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(MAKES_KEY) ?? "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Returns false when the browser refuses the write — almost always the 5 MB
+ * quota, since creations are the only large thing stored. The caller shows
+ * the creation anyway; it is on screen, it is just not kept.
+ */
+function writeMakes(makes) {
+  try {
+    localStorage.setItem(MAKES_KEY, JSON.stringify(makes.slice(0, MAX_CREATIONS)));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function listCreations(thoughtId = null) {
+  const all = readMakes().sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+  return thoughtId ? all.filter((make) => make.thoughtId === thoughtId) : all;
+}
+
+export function getCreation(id) {
+  return readMakes().find((make) => make.id === id) ?? null;
+}
+
+/** Saved the moment the job starts, so closing the app never loses the work. */
+export function saveCreation(make) {
+  const makes = readMakes().filter((existing) => existing.id !== make.id);
+  const stored = writeMakes([make, ...makes]);
+  return { ...make, stored };
+}
+
+export function removeCreation(id) {
+  writeMakes(readMakes().filter((make) => make.id !== id));
+}
+
+/** Any creation still mid-generation, so the app can re-attach on open. */
+export function unfinishedCreations() {
+  return readMakes().filter((make) => make.status === "making");
+}
+
+/** Everything, for the export button. */
+export function exportAll() {
+  return {
+    exportedAt: new Date().toISOString(),
+    app: "High Thoughts",
+    note: "Your ideas and creations. Open any creation's html in a browser.",
+    ideas: list(),
+    creations: readMakes(),
+  };
+}
+
+/* ── Textbooks (retired from the UI; kept so old purchases still open) ───── */
 
 const BOOKS_KEY = "high-thoughts/books/v1";
 

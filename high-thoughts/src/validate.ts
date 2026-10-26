@@ -1,5 +1,6 @@
 import { BriefSchema, type Brief } from "./brief.js";
 import { isModeId, MODES } from "./modes.js";
+import type { InterviewTurn } from "./interview.js";
 import type { DevelopRequest, MarkedLine, Profile, ThoughtChain, Turn } from "./types.js";
 
 export class ValidationError extends Error {
@@ -222,3 +223,61 @@ export function validateBrief(body: unknown): Brief {
 
   return parsed.data;
 }
+
+
+/** A creation is built from the original idea plus what they answered. */
+export interface CreationRequest {
+  thought: string;
+  answers: InterviewTurn[];
+  kind: "app" | "design" | "simulation";
+  /** Free text from "make it better" — their words, capped. */
+  feedback: string;
+}
+
+const KINDS = new Set(["app", "design", "simulation"]);
+
+/**
+ * The interview and the creation share this: the original idea is taken
+ * verbatim and never rewritten, and every answer is capped, because all of it
+ * ends up in a prompt and all of it comes from the phone.
+ */
+export function validateCreationRequest(body: unknown, options: ValidateOptions): CreationRequest {
+  if (typeof body !== "object" || body === null) {
+    throw new ValidationError("Expected a JSON object.");
+  }
+  const raw = body as Record<string, unknown>;
+
+  if (typeof raw.thought !== "string") throw new ValidationError("An idea is required.");
+  const thought = raw.thought.trim();
+  if (thought.length === 0) throw new ValidationError("The idea is empty.");
+  if (thought.length > options.maxThoughtChars) {
+    throw new ValidationError(`Keep it under ${options.maxThoughtChars} characters.`);
+  }
+
+  const answers: InterviewTurn[] = [];
+  if (Array.isArray(raw.answers)) {
+    // Four is the interview's ceiling and it is enforced here, on the server,
+    // not merely asked for in the prompt.
+    for (const entry of raw.answers.slice(0, MAX_INTERVIEW_ANSWERS)) {
+      if (typeof entry !== "object" || entry === null) continue;
+      const turn = entry as Record<string, unknown>;
+      if (typeof turn.question !== "string" || typeof turn.answer !== "string") continue;
+      const answer = turn.answer.trim();
+      if (answer.length === 0) continue;
+      answers.push({
+        question: turn.question.trim().slice(0, 300),
+        answer: answer.slice(0, 1000),
+      });
+    }
+  }
+
+  return {
+    thought,
+    answers,
+    kind: KINDS.has(raw.kind as string) ? (raw.kind as CreationRequest["kind"]) : "simulation",
+    feedback: typeof raw.feedback === "string" ? raw.feedback.trim().slice(0, 600) : "",
+  };
+}
+
+/** How many questions anyone may be asked, whatever the client claims. */
+export const MAX_INTERVIEW_ANSWERS = 4;

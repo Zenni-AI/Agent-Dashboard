@@ -47,7 +47,8 @@
         <legend class="sr-only">What should it do with the thought?</legend>
       </fieldset>
 
-      <button type="submit" class="go" id="go">Catch it</button>
+      <button type="submit" class="go" id="go">Build it</button>
+      <button type="button" class="talk" id="talk">or just talk about it first</button>
     </form>
 
     <p class="hint" id="hint"></p>
@@ -74,8 +75,8 @@
       <div class="again-row" id="again-row"></div>
 
       <button type="button" class="book-cta" id="make-book">
-        <strong>Make the textbook</strong>
-        <span>Everything you've decided, researched and cited. Yours to keep.</span>
+        <strong>Build it</strong>
+        <span>Turn this into something you can actually look at and poke.</span>
       </button>
     </div>
   </section>
@@ -125,6 +126,74 @@
     <article class="answer book" id="book-body" aria-live="polite"></article>
   </section>
 
+  <!-- ── Interview ─────────────────────────────────────────────────────── -->
+  <section class="screen" id="screen-interview" data-screen="interview" hidden>
+    <div class="result-top">
+      <button type="button" class="back" id="iv-back" aria-label="Back">←</button>
+      <span class="mode-tag" id="iv-count"></span>
+    </div>
+
+    <blockquote class="original" id="iv-original"></blockquote>
+
+    <p class="ghost" id="iv-ghost" hidden><span>thinking about it</span></p>
+
+    <div id="iv-body" hidden>
+      <h1 class="iv-question" id="iv-question"></h1>
+      <form id="iv-form" autocomplete="off">
+        <textarea id="iv-answer" rows="3" maxlength="1000" enterkeyhint="go" aria-label="Your answer"></textarea>
+        <button type="submit" class="go" id="iv-next">Next</button>
+      </form>
+      <button type="button" class="talk" id="iv-skip">Just build it</button>
+    </div>
+
+    <p class="hint" id="iv-error"></p>
+  </section>
+
+  <!-- ── Creation ──────────────────────────────────────────────────────── -->
+  <section class="screen wide" id="screen-creation" data-screen="creation" hidden>
+    <div class="result-top">
+      <button type="button" class="back" id="cr-back" aria-label="Back">←</button>
+      <span class="mode-tag" id="cr-tag">Your creation</span>
+      <button type="button" class="back" id="cr-stop" hidden aria-label="Stop it running">■</button>
+    </div>
+
+    <div class="making" id="cr-making" hidden>
+      <p class="writing-line">Building it.</p>
+      <p class="writing-sub">A minute or two. You can lock your phone — it carries on without you.</p>
+      <p class="ghost" id="cr-ghost"><span id="cr-ghost-text"></span></p>
+      <div class="progress"><span id="cr-bar"></span></div>
+    </div>
+
+    <div class="preview-host" id="cr-preview"></div>
+
+    <p class="fit-warning" id="cr-fit" hidden></p>
+
+    <div class="cr-actions" id="cr-actions" hidden>
+      <button type="button" class="chip" id="cr-improve">Make it better</button>
+      <button type="button" class="chip" id="cr-download">Save the file</button>
+      <button type="button" class="chip" id="cr-open">Open full screen</button>
+    </div>
+
+    <form class="improve-form" id="cr-improve-form" hidden>
+      <textarea id="cr-feedback" rows="2" maxlength="600" placeholder="what should be different?" aria-label="What to change"></textarea>
+      <button type="submit" class="go">Build it again</button>
+    </form>
+  </section>
+
+  <!-- ── One idea, start to finish ─────────────────────────────────────── -->
+  <section class="screen" id="screen-idea" data-screen="idea" hidden>
+    <div class="result-top">
+      <button type="button" class="back" id="idea-back" aria-label="Back">←</button>
+      <span class="mode-tag" id="idea-date"></span>
+      <button type="button" class="back" id="idea-delete" aria-label="Delete this idea">✕</button>
+    </div>
+    <h1 class="idea-title" id="idea-title"></h1>
+    <div id="idea-timeline"></div>
+    <div class="idea-actions">
+      <button type="button" class="go" id="idea-continue">Keep going with this</button>
+    </div>
+  </section>
+
   <!-- ── Log ───────────────────────────────────────────────────────────── -->
   <section class="screen" id="screen-log" data-screen="log" hidden>
     <header class="masthead small">
@@ -148,21 +217,25 @@
   <!-- ── Knowledge Library ─────────────────────────────────────────────── -->
   <section class="screen" id="screen-library" data-screen="library" hidden>
     <header class="masthead small">
-      <h1>Knowledge Library</h1>
+      <h1>Idea Library</h1>
       <p class="tagline" id="library-count"></p>
     </header>
 
     <div class="shelf-empty" id="library-empty" hidden>
       <div class="shelf-ghosts" aria-hidden="true"><span></span><span></span><span></span></div>
-      <p class="shelf-lead">Nothing on the shelf yet.</p>
+      <p class="shelf-lead">Nothing here yet.</p>
       <p class="shelf-sub">
-        Every thought journey that goes far enough ends up here as a book —
-        what you decided, what's real, what it would take, properly sourced.
+        Everything you make ends up here — what you first typed, what it asked
+        you, and the thing it built. Tap any of them to see how it happened.
       </p>
-      <p class="shelf-sub dim">The ones you put money behind are the ones you actually try.</p>
+      <p class="shelf-sub dim">Catch something and build it.</p>
     </div>
 
     <ul class="log books" id="books"></ul>
+
+    <div class="library-tools">
+      <button type="button" class="chip" id="export-all">Back up everything</button>
+    </div>
 
     <div class="credits" id="credits">
       <p class="credits-line" id="credits-line"></p>

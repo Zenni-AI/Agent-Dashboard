@@ -4,15 +4,66 @@ Audited 2026-10-26 against `05fad15`.
 
 ## The headline
 
-**Generated HTML is never rendered today, because no renderer exists.** There
-is no `<iframe>`, no `sandbox` attribute and no CSP header anywhere in the
-repository — verified by grep across `src/` and `public/`. So there is no
-current execution vulnerability. There is also no mitigation to inherit: the
-renderer must be built correctly from nothing.
+**A renderer now exists and has been attacked.** `public/preview.js` is the
+only path by which generated HTML reaches a screen. Twelve attack payloads and
+a network-egress test were run against it in a real browser, against the real
+app, with real secrets in `localStorage`.
+
+Re-run them any time: `npm run security`.
 
 ---
 
-## R1 — Rendering generated HTML (CRITICAL, before any prototype UI ships)
+## R1 — Rendering generated HTML — MITIGATED AND TESTED
+
+### Verified results (2026-10-26, Chromium, against the live app)
+
+| Attack | Result |
+| --- | --- |
+| `parent.localStorage.getItem('high-thoughts/v1')` | `SecurityError` |
+| `parent.document.cookie` | `SecurityError` |
+| `parent.location.href` | `SecurityError` |
+| `typeof parent.fetch` | `SecurityError` |
+| Remove own `sandbox` attribute from parent DOM | `SecurityError` |
+| Own `localStorage` | `SecurityError` (opaque origin) |
+| `top.location = …` | `SecurityError` |
+| `window.open(…)` | returns `null` |
+| `fetch()` to another origin | CSP-refused, **0 bytes sent** |
+| `XMLHttpRequest` POST | CSP-refused, request failed `:: csp` |
+| `new Image().src` | CSP-refused, request failed `:: csp` |
+| `navigator.sendBeacon` | CSP-refused |
+| `new WebSocket('wss://…')` | CSP-refused |
+| `new EventSource(…)` | CSP-refused, request failed `:: csp` |
+| `serviceWorker.register` | blocked |
+
+**Egress measured by network observation, not by API return values.** This
+matters: `sendBeacon` returned `true` and the `WebSocket` constructor did not
+throw, which looks like success. Watching the network showed **zero requests
+completed** — every one failed with `errorText: csp`. Had this been judged on
+return values alone, two exfiltration paths would have been wrongly recorded as
+open, and one as closed when it was not yet proven.
+
+The parent's `localStorage` was re-read after every attack and was intact; the
+`sandbox` attribute was still exactly `allow-scripts`.
+
+### What provides each guarantee
+
+- `sandbox="allow-scripts"` **alone**, never with `allow-same-origin` — together
+  they let a frame remove its own sandbox.
+- The opaque origin that `srcdoc` + the above produces.
+- The injected CSP — **this and not the sandbox is what stops exfiltration.**
+  `connect-src 'none'` is the single most load-bearing directive in the app.
+- Pre-render stripping of `<script src>`, `<link>`, `<base>`, nested frames,
+  `<meta refresh>` and any CSP the model wrote itself.
+
+### Residual risk (accepted)
+
+A sandboxed frame can still burn CPU, spin forever, or render something
+unpleasant. Mitigated by a **Stop** control that removes the frame. It cannot
+read, write, phone home, or navigate.
+
+### Original analysis (retained)
+
+## R1 (historic) — Rendering generated HTML
 
 A prototype is model-written HTML **and JavaScript** that must execute to be
 worth anything. The app's entire value — every idea the user has ever had —
@@ -46,14 +97,40 @@ mitigate with a visible "stop" control that removes the frame.
 **Recommendation:** build the renderer as one reviewed module with no options.
 Do not let call sites choose sandbox flags.
 
-## R2 — Unmetered model endpoints (HIGH, blocks hosting)
+## R2 — Unmetered model endpoints (HIGH, **BLOCKS PUBLIC DEPLOYMENT**)
 
 `/api/develop` and `/api/brief` require **no credit and no authentication**.
 Anyone who can reach the server spends the operator's API budget, throttled
 only by 30 requests/minute/IP (`ratelimit.ts`), which is per-process and
 in-memory. Trivially bypassed with multiple IPs.
 
+`/api/interview` is also unmetered and now sits on this list.
+
 Fine on `localhost`. **Must be resolved before any public deployment.**
+
+---
+
+# PUBLIC DEPLOYMENT IS BLOCKED
+
+Milestone 1 delivers the product loop, not the protections a public service
+needs. **Do not host this where strangers can reach it** until all of the
+following exist. None of them are built:
+
+| Required before launch | State |
+| --- | --- |
+| Server-enforced generation authorization | **Missing.** The free first creation is granted by the *client*; clearing `localStorage` grants another. The credit check itself is server-enforced and sound — the *free allowance* is not. |
+| Per-user usage limits | **Missing.** There are no users. |
+| Throttling backed by persistent storage | **Missing.** `ratelimit.ts` is per-process and in-memory; a restart clears it and a second instance does not share it. |
+| Maximum input sizes | **Present.** Every field capped in `validate.ts`. |
+| Maximum output sizes | **Partial.** `max_tokens` caps each call; there is no cap on calls per person. |
+| AI spending limits and monitoring | **Missing.** Usage is logged per request (`creation done: N in, N out`); nothing aggregates or stops at a threshold. |
+| API credentials server-side only | **Present and verified.** The key never reaches the client; upstream errors are scrubbed of anything key-shaped. |
+| Replay/abuse protection on generation | **Missing.** A captured request can be replayed; it will spend a credit each time, but nothing rate-limits per token. |
+
+**The specific hole to understand:** a free first creation that the client
+grants is not an entitlement. It costs ~$0.50 of API spend and can be claimed
+repeatedly by clearing site data. It is fine for a private build and for
+showing people. It is not fine on the open internet.
 
 ## R3 — No authentication anywhere (HIGH for hosting, by design today)
 

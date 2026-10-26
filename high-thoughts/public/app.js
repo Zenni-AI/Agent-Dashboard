@@ -6,6 +6,7 @@ import {
   recordOffer,
   shouldOffer,
 } from "./offer.js";
+import { mountPreview, previewError, sanitizePrototype } from "./preview.js";
 import { buildProfile, isUseful } from "./profile.js";
 import * as store from "./store.js";
 
@@ -56,6 +57,18 @@ const el = {
   selectBook: $("select-book"),
   selectCancel: $("select-cancel"),
   books: $("books"),
+  talk: $("talk"),
+  ivBack: $("iv-back"), ivCount: $("iv-count"), ivOriginal: $("iv-original"),
+  ivGhost: $("iv-ghost"), ivBody: $("iv-body"), ivQuestion: $("iv-question"),
+  ivForm: $("iv-form"), ivAnswer: $("iv-answer"), ivSkip: $("iv-skip"), ivError: $("iv-error"),
+  crBack: $("cr-back"), crTag: $("cr-tag"), crStop: $("cr-stop"), crMaking: $("cr-making"),
+  crGhost: $("cr-ghost"), crGhostText: $("cr-ghost-text"), crBar: $("cr-bar"),
+  crPreview: $("cr-preview"), crFit: $("cr-fit"), crActions: $("cr-actions"),
+  crImprove: $("cr-improve"), crDownload: $("cr-download"), crOpen: $("cr-open"),
+  crImproveForm: $("cr-improve-form"), crFeedback: $("cr-feedback"),
+  ideaBack: $("idea-back"), ideaDate: $("idea-date"), ideaDelete: $("idea-delete"),
+  ideaTitle: $("idea-title"), ideaTimeline: $("idea-timeline"), ideaContinue: $("idea-continue"),
+  exportAll: $("export-all"),
   libraryCount: $("library-count"),
   libraryEmpty: $("library-empty"),
   offerVeil: $("offer-veil"),
@@ -163,9 +176,13 @@ const state = {
   selected: new Set(),
   /** How often we have interrupted, and about what. */
   offer: null,
-  /** The book credit this phone holds, and what the server last said was left. */
+  /** The credit this phone holds, and what the server last said was left. */
   token: null,
   credits: 0,
+  /** The interview in progress, and the creation on screen. */
+  interview: null,
+  creation: null,
+  preview: null,
 };
 
 /**
@@ -191,6 +208,9 @@ function show(name, { push = true } = {}) {
   }
   if (name === "log") renderLog();
   if (name === "library") renderLibrary();
+  if (name === "idea") renderIdea();
+  // A creation keeps running in its frame; leaving the screen stops it.
+  if (name !== "creation" && state.preview) { state.preview.stop(); state.preview = null; }
   window.scrollTo(0, 0);
 
   if (push && location.hash !== `#${name}`) history.pushState({ name }, "", `#${name}`);
@@ -288,8 +308,92 @@ el.form.addEventListener("submit", (event) => {
   el.thought.value = "";
   updateCounter();
 
+  startInterview(thought);
+});
+
+// The modes are still here for anyone who wants to think out loud first.
+el.talk.addEventListener("click", () => {
+  const text = el.thought.value.trim();
+  if (!text) { el.hint.textContent = "Say something first."; el.thought.focus(); return; }
+  stopDictation();
+  const thought = store.capture(text);
+  el.thought.value = "";
+  updateCounter();
   openThought(thought, { develop: state.mode });
 });
+
+/* ── Interview ───────────────────────────────────────────────────────────
+ *
+ * The part that turns a wish into something buildable. One question on screen
+ * at a time, because a form of four questions reads as homework and this has
+ * to read as someone interested in your idea.
+ */
+
+el.ivBack.addEventListener("click", () => history.back());
+el.ivSkip.addEventListener("click", () => beginCreation(state.interview?.thought));
+
+el.ivForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const answer = el.ivAnswer.value.trim();
+  if (!answer) { el.ivAnswer.focus(); return; }
+
+  const iv = state.interview;
+  const updated = store.addAnswer(iv.thought.id, iv.question, answer);
+  if (updated) iv.thought = updated;
+
+  el.ivAnswer.value = "";
+  askNext(iv.thought);
+});
+
+function startInterview(thought) {
+  state.interview = { thought, question: "", kind: "simulation" };
+  el.ivOriginal.textContent = thought.thought;
+  el.ivAnswer.value = "";
+  el.ivError.textContent = "";
+  el.ivBody.hidden = true;
+  show("interview");
+  askNext(thought);
+}
+
+async function askNext(thought) {
+  el.ivBody.hidden = true;
+  el.ivGhost.hidden = false;
+  el.ivError.textContent = "";
+
+  const answers = (thought.answers ?? []).map((a) => ({ question: a.question, answer: a.answer }));
+  el.ivCount.textContent = answers.length === 0 ? "One sec" : `Question ${answers.length + 1} of 4 max`;
+
+  try {
+    const response = await fetch("/api/interview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ thought: thought.thought, answers }),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      el.ivGhost.hidden = true;
+      el.ivError.textContent = data.error ?? `The server said no (${response.status}).`;
+      return;
+    }
+
+    state.interview.kind = data.buildKind ?? "simulation";
+
+    if (data.ready) { beginCreation(thought); return; }
+
+    state.interview.question = data.question;
+    el.ivQuestion.textContent = data.question;
+    el.ivAnswer.placeholder = data.placeholder || "whatever comes out";
+    el.ivGhost.hidden = true;
+    el.ivBody.hidden = false;
+    el.ivAnswer.focus();
+  } catch {
+    el.ivGhost.hidden = true;
+    el.ivError.textContent = navigator.onLine
+      ? "Could not reach the app. Try again."
+      : "You're offline. Try when you have signal.";
+  }
+}
 
 /* ── Dictation ──────────────────────────────────────────────────────────── */
 
@@ -664,7 +768,7 @@ async function* readEvents(body, signal) {
 
 el.offerGo.addEventListener("click", () => {
   closeOffer();
-  if (state.current) requestBrief([state.current]);
+  if (state.current) startInterview(state.current);
 });
 
 el.offerNo.addEventListener("click", () => {
@@ -690,12 +794,12 @@ document.addEventListener("keydown", (event) => {
  * function only renders the result.
  */
 function maybeOffer(thought) {
-  const hasBook = store.listBooks().some((book) => book.thoughtId === thought.id);
+  const hasBook = store.listCreations().some((make) => make.thoughtId === thought.id);
   if (!shouldOffer({ ...thought, hasBook }, state.offer)) return;
 
   el.offerReason.textContent = offerReason(thought);
   el.offerTitle.textContent =
-    store.listBooks().length > 0 ? "Add this to your Knowledge Library" : "Start your Knowledge Library";
+    store.listCreations().length > 0 ? "Build this one too" : "Build it, don't just think it";
 
   el.offerVeil.hidden = false;
   saveOfferState(recordOffer(state.offer, thought.id));
@@ -708,7 +812,7 @@ function closeOffer() {
 /* ── The brief ──────────────────────────────────────────────────────────── */
 
 el.makeBook.addEventListener("click", () => {
-  if (state.current) requestBrief([state.current]);
+  if (state.current) startInterview(state.current);
 });
 
 el.briefBack.addEventListener("click", () => history.back());
@@ -1011,6 +1115,367 @@ async function followTextbook(book) {
   }
 }
 
+/* ── One idea, start to finish ────────────────────────────────────────────
+ *
+ * The Idea Library's point: not a list of outputs, but the life of one idea —
+ * what you typed, what it asked, what you said back, and what got built. The
+ * original text sits at the top, visually distinct, and is never rewritten.
+ */
+
+el.ideaBack.addEventListener("click", () => history.back());
+el.ideaContinue.addEventListener("click", () => {
+  if (state.current) startInterview(state.current);
+});
+
+el.ideaDelete.addEventListener("click", () => {
+  const thought = state.current;
+  if (!thought || !confirm("Delete this idea and everything made from it?")) return;
+  for (const make of store.listCreations(thought.id)) store.removeCreation(make.id);
+  store.remove(thought.id);
+  state.current = null;
+  show("library");
+});
+
+function openIdea(thought) {
+  state.current = thought;
+  show("idea");
+}
+
+function renderIdea() {
+  const thought = state.current;
+  if (!thought) { show("library"); return; }
+
+  el.ideaTitle.textContent = thought.title || extractTitle("", thought.thought);
+  el.ideaDate.textContent = when(thought.createdAt);
+  el.ideaTimeline.replaceChildren();
+
+  const rail = document.createElement("div");
+  rail.className = "tl";
+
+  // Always first, always verbatim.
+  rail.append(item("said", "What you said", (body) => {
+    body.textContent = thought.thought;
+  }));
+
+  for (const answer of thought.answers ?? []) {
+    rail.append(item("asked", "It asked", (body) => {
+      const q = document.createElement("p");
+      q.className = "tl-q";
+      q.textContent = answer.question;
+      const a = document.createElement("p");
+      a.className = "tl-a";
+      a.textContent = answer.answer;
+      body.append(q, a);
+    }));
+  }
+
+  for (const turn of thought.turns ?? []) {
+    rail.append(item("asked", modeLabel(turn.mode), (body) => {
+      const p = document.createElement("p");
+      p.className = "tl-a";
+      p.textContent = extractSnippet(turn.text) || "—";
+      body.append(p);
+    }));
+  }
+
+  const makes = store.listCreations(thought.id).sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
+  makes.forEach((make, index) => {
+    rail.append(item("made", index === 0 ? "It built" : `Version ${make.version ?? index + 1}`, (body) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "tl-make";
+
+      // A live thumbnail, under the same sandbox as the full preview.
+      const host = document.createElement("span");
+      host.className = "thumb";
+      if (make.html) {
+        const { html } = sanitizePrototype(make.html);
+        const thumb = document.createElement("iframe");
+        thumb.className = "thumb";
+        thumb.setAttribute("sandbox", "allow-scripts");
+        thumb.setAttribute("referrerpolicy", "no-referrer");
+        thumb.setAttribute("tabindex", "-1");
+        thumb.srcdoc = html;
+        host.replaceWith(thumb);
+        button.append(thumb);
+      } else {
+        button.append(host);
+      }
+
+      const cap = document.createElement("span");
+      cap.className = "cap";
+      cap.innerHTML = make.status === "making"
+        ? "<em>still building — tap to watch</em>"
+        : make.feedback
+          ? `after you said: <em>${escapeForCap(make.feedback)}</em>`
+          : "tap to open it";
+      button.append(cap);
+      button.addEventListener("click", () => openCreation(make));
+      body.append(button);
+    }));
+  });
+
+  if (makes.length === 0) {
+    rail.append(item("made", "Nothing built yet", (body) => {
+      const p = document.createElement("p");
+      p.className = "tl-a";
+      p.textContent = "Keep going with this and it'll ask you a couple of questions, then build it.";
+      body.append(p);
+    }));
+  }
+
+  el.ideaTimeline.append(rail);
+}
+
+function item(kind, when, fill) {
+  const wrap = document.createElement("div");
+  wrap.className = `tl-item ${kind}`;
+  const label = document.createElement("span");
+  label.className = "tl-when";
+  label.textContent = when;
+  const body = document.createElement("div");
+  body.className = "tl-body";
+  fill(body);
+  wrap.append(label, body);
+  return wrap;
+}
+
+/** Captions are built with innerHTML for the <em>, so their text is escaped. */
+function escapeForCap(text) {
+  const div = document.createElement("div");
+  div.textContent = text.slice(0, 90);
+  return div.innerHTML;
+}
+
+/* ── Creation ─────────────────────────────────────────────────────────────
+ *
+ * Generation is a job: it runs on the server whether or not this phone is
+ * still listening, and the record is written the moment it starts, so closing
+ * the app loses nothing. Re-opening re-attaches to the same stream.
+ */
+
+el.crBack.addEventListener("click", () => history.back());
+
+el.crStop.addEventListener("click", () => {
+  if (state.preview) { state.preview.stop(); state.preview = null; }
+  previewError(el.crPreview, "Stopped. Open it again to run it.");
+  el.crStop.hidden = true;
+});
+
+el.crImprove.addEventListener("click", () => {
+  el.crImproveForm.hidden = !el.crImproveForm.hidden;
+  if (!el.crImproveForm.hidden) el.crFeedback.focus();
+});
+
+el.crImproveForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const feedback = el.crFeedback.value.trim();
+  const make = state.creation;
+  if (!make) return;
+  el.crFeedback.value = "";
+  el.crImproveForm.hidden = true;
+  const thought = store.get(make.thoughtId);
+  if (thought) beginCreation(thought, { feedback, version: (make.version ?? 1) + 1 });
+});
+
+el.crDownload.addEventListener("click", () => {
+  const make = state.creation;
+  if (!make?.html) return;
+  const name = `${(make.title || "creation").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.html`;
+  const url = URL.createObjectURL(new Blob([make.html], { type: "text/html" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+});
+
+el.crOpen.addEventListener("click", () => {
+  const make = state.creation;
+  if (!make?.html) return;
+  // Same sandbox rules, full screen: a blob URL is its own opaque origin and
+  // the CSP travels inside the document.
+  const { html } = sanitizePrototype(make.html);
+  const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+  window.open(url, "_blank", "noopener,noreferrer");
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
+});
+
+async function beginCreation(thought, { feedback = "", version = 1 } = {}) {
+  if (!thought) return;
+
+  const answers = (thought.answers ?? []).map((a) => ({ question: a.question, answer: a.answer }));
+  const kind = state.interview?.kind ?? "simulation";
+
+  el.crTag.textContent = "Building";
+  el.crFit.hidden = true;
+  el.crActions.hidden = true;
+  el.crImproveForm.hidden = true;
+  el.crStop.hidden = true;
+  el.crPreview.replaceChildren();
+  el.crMaking.hidden = false;
+  el.crGhostText.textContent = "working out what to draw";
+  el.crBar.style.width = "2%";
+  show("creation");
+
+  try {
+    const response = await fetch("/api/creation", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}),
+      },
+      body: JSON.stringify({ thought: thought.thought, answers, kind, feedback }),
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (response.status === 402) {
+      el.crMaking.hidden = true;
+      state.credits = 0;
+      previewError(
+        el.crPreview,
+        data.reason === "empty"
+          ? "That was your last creation. Add a code in your Library to make another."
+          : "Creations are paid for one at a time — each one is really built. Add a code in your Library.",
+      );
+      return;
+    }
+
+    if (!response.ok || !data.id) {
+      el.crMaking.hidden = true;
+      previewError(el.crPreview, data.error ?? `The server said no (${response.status}).`);
+      return;
+    }
+
+    if (typeof data.creditsLeft === "number") state.credits = data.creditsLeft;
+
+    const make = store.saveCreation({
+      id: data.id,
+      thoughtId: thought.id,
+      title: thought.title || thought.thought.slice(0, 40),
+      kind,
+      html: "",
+      status: "making",
+      version,
+      feedback,
+      createdAt: Date.now(),
+    });
+
+    state.creation = make;
+    followCreation(make);
+  } catch {
+    el.crMaking.hidden = true;
+    previewError(el.crPreview, "Could not reach the app. Try again.");
+  }
+}
+
+/** Attach to a creation's job. Safe to call on one already finished. */
+async function followCreation(make) {
+  stopStream();
+  const abort = new AbortController();
+  state.abort = abort;
+
+  let html = "";
+  // The page is ~20 KB; this is only ever a sense of movement, never a claim.
+  const expected = 20000;
+
+  const save = (status) => {
+    const saved = store.saveCreation({ ...make, html, status });
+    if (state.creation?.id === make.id) state.creation = saved;
+    return saved;
+  };
+
+  const finish = (text) => {
+    el.crMaking.hidden = true;
+    el.crTag.textContent = "Your creation";
+    const saved = save("done");
+    state.creation = saved;
+
+    if (!saved.stored) {
+      el.crFit.hidden = false;
+      el.crFit.textContent = "This phone is out of storage, so this one is on screen but not saved. Save the file to keep it.";
+    }
+
+    state.preview = mountPreview(el.crPreview, text, {
+      onFit: (overflow) => {
+        if (overflow <= 0) return;
+        el.crFit.hidden = false;
+        el.crFit.textContent = `${overflow} bit${overflow === 1 ? "" : "s"} of text look clipped. "Make it better" will have another go.`;
+      },
+    });
+    el.crStop.hidden = false;
+    el.crActions.hidden = false;
+  };
+
+  try {
+    const response = await fetch(`/api/creation/${encodeURIComponent(make.id)}`, { signal: abort.signal });
+    if (!response.ok || !response.body) {
+      el.crMaking.hidden = true;
+      if (make.html) finish(make.html);
+      else previewError(el.crPreview, "That creation expired before it finished. Build it again.");
+      return;
+    }
+
+    for await (const event of readEvents(response.body, abort.signal)) {
+      switch (event.type) {
+        case "status":
+          el.crGhostText.textContent = event.text.replace(/\s+/g, " ").trim().slice(-120);
+          break;
+        case "text":
+          html += event.text;
+          el.crBar.style.width = `${Math.min(96, (html.length / expected) * 100).toFixed(0)}%`;
+          break;
+        case "error":
+          el.crMaking.hidden = true;
+          previewError(el.crPreview, event.message);
+          save("failed");
+          return;
+        case "done":
+          el.crBar.style.width = "100%";
+          finish(html);
+          return;
+        default:
+          break;
+      }
+    }
+
+    if (html.trim()) finish(html);
+    else { el.crMaking.hidden = true; previewError(el.crPreview, "That cut out before anything arrived. Try again."); }
+  } catch (error) {
+    if (error.name === "AbortError") { if (html.trim()) save("making"); return; }
+    el.crMaking.hidden = true;
+    previewError(el.crPreview, "Lost the connection. Open it again to pick it back up.");
+    save("making");
+  } finally {
+    if (state.abort === abort) state.abort = null;
+  }
+}
+
+function openCreation(make) {
+  state.creation = make;
+  el.crFit.hidden = true;
+  el.crImproveForm.hidden = true;
+  el.crPreview.replaceChildren();
+  show("creation");
+
+  if (make.status === "making") {
+    el.crMaking.hidden = false;
+    el.crTag.textContent = "Building";
+    followCreation(make);
+    return;
+  }
+
+  el.crMaking.hidden = true;
+  el.crTag.textContent = "Your creation";
+  el.crActions.hidden = false;
+  if (make.html) {
+    state.preview = mountPreview(el.crPreview, make.html);
+    el.crStop.hidden = false;
+  } else {
+    previewError(el.crPreview, "This one never finished. Build it again from the idea.");
+  }
+}
+
 /* ── Log ────────────────────────────────────────────────────────────────── */
 
 const RELATIVE = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
@@ -1118,45 +1583,56 @@ function renderCredits() {
       : "No books left. Add a code to make another.";
 }
 
+/**
+ * The Idea Library: every idea, with what came of it.
+ *
+ * Lists ideas rather than outputs, because the idea is the thing a person
+ * recognises a month later — "remember this one?" — and the creations hang off
+ * it. The original text is the preview, never a generated summary.
+ */
 function renderLibrary() {
   renderCredits();
   refreshCredits().then(renderCredits);
-  const books = store.listBooks();
-  const done = books.filter((book) => book.status === "done").length;
 
-  el.libraryEmpty.hidden = books.length > 0;
+  const ideas = store.list();
+  const makes = store.listCreations();
+
+  el.libraryEmpty.hidden = ideas.length > 0;
   el.libraryCount.textContent =
-    books.length === 0
+    ideas.length === 0
       ? ""
-      : `${books.length} ${books.length === 1 ? "book" : "books"}${done < books.length ? ` · ${books.length - done} still writing` : ""}`;
+      : `${ideas.length} idea${ideas.length === 1 ? "" : "s"} · ${makes.length} built · kept on this phone`;
 
   el.books.replaceChildren();
 
-  for (const book of books) {
+  for (const idea of ideas) {
+    const mine = makes.filter((make) => make.thoughtId === idea.id);
+
     const button = document.createElement("button");
     button.type = "button";
 
     const title = document.createElement("span");
     title.className = "title";
-    title.textContent = book.title || "Untitled";
+    title.textContent = idea.title || extractTitle("", idea.thought);
 
     const meta = document.createElement("span");
-    meta.className = book.status === "writing" ? "meta undeveloped" : "meta";
-    meta.textContent =
-      book.status === "writing"
-        ? `${when(book.createdAt)} · still writing`
-        : `${when(book.createdAt)} · ${book.sources?.length ?? 0} sources`;
+    meta.className = mine.length ? "meta" : "meta undeveloped";
+    const bits = [when(idea.createdAt)];
+    if (mine.length) bits.push(`${mine.length} built`);
+    if (idea.answers?.length) bits.push(`${idea.answers.length} answered`);
+    if (idea.turns?.length) bits.push(`${idea.turns.length} pass${idea.turns.length === 1 ? "" : "es"}`);
+    meta.textContent = bits.join(" · ");
 
     const snippet = document.createElement("span");
     snippet.className = "snippet";
-    snippet.textContent = book.building || extractSnippet(book.text ?? "");
+    snippet.textContent = idea.thought;
 
     button.append(title, meta, snippet);
-    button.addEventListener("click", () => openBook(book));
+    button.addEventListener("click", () => openIdea(idea));
 
-    const item = document.createElement("li");
-    item.append(button);
-    el.books.append(item);
+    const row = document.createElement("li");
+    row.append(button);
+    el.books.append(row);
   }
 }
 
@@ -1217,6 +1693,16 @@ function renderLog() {
     el.log.append(item);
   }
 }
+
+el.exportAll.addEventListener("click", () => {
+  const payload = JSON.stringify(store.exportAll(), null, 2);
+  const url = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `high-thoughts-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+});
 
 /* ── Boot ───────────────────────────────────────────────────────────────── */
 

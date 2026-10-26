@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
+import { MAX_INTERVIEW_ANSWERS } from "./validate.js";
 
 /**
  * The part where it asks you how it flies.
@@ -97,9 +98,11 @@ export async function nextQuestion(options: InterviewOptions): Promise<Question>
   const question = response.parsed_output;
   if (!question) throw new Error("No question came back.");
 
-  // Four is the ceiling, and the model is told so — but the ceiling has to
-  // hold even when it forgets, or the person never gets their prototype.
-  if (answers.length >= 4) return { ...question, ready: true, question: "", placeholder: "" };
+  // The ceiling holds even when the model forgets it, because otherwise the
+  // person never gets out of the interview and into their creation.
+  if (answers.length >= MAX_INTERVIEW_ANSWERS) {
+    return { ...question, ready: true, question: "", placeholder: "" };
+  }
 
   return question;
 }

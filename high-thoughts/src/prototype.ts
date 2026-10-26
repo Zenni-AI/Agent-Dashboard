@@ -53,12 +53,14 @@ export interface PrototypeOptions {
   thought: string;
   answers: InterviewTurn[];
   kind: "app" | "design" | "simulation";
+  /** What they said was wrong with the last one, in their words. */
+  feedback?: string;
   signal?: AbortSignal;
 }
 
 /** Stream the prototype's HTML, tag first, as the model writes it. */
 export async function* streamPrototype(options: PrototypeOptions): AsyncGenerator<StreamEvent> {
-  const { client, model, thought, answers, kind, signal } = options;
+  const { client, model, thought, answers, kind, feedback, signal } = options;
 
   yield { type: "start", mode: "prototype" as never, model };
 
@@ -71,7 +73,7 @@ export async function* streamPrototype(options: PrototypeOptions): AsyncGenerato
       thinking: { type: "adaptive", display: "summarized" },
       output_config: { effort: "high" },
       system: SYSTEM,
-      messages: [{ role: "user", content: renderOrder(thought, answers, kind) }],
+      messages: [{ role: "user", content: renderOrder(thought, answers, kind, feedback) }],
     },
     signal ? { signal } : undefined,
   );
@@ -112,7 +114,12 @@ const KIND_NOTE: Record<PrototypeOptions["kind"], string> = {
   simulation: "This is a physical thing. The prototype is a simulation that actually runs the mechanism and obeys real numbers — and tells them the truth about those numbers, as a joke rather than a lecture.",
 };
 
-export function renderOrder(thought: string, answers: InterviewTurn[], kind: PrototypeOptions["kind"]): string {
+export function renderOrder(
+  thought: string,
+  answers: InterviewTurn[],
+  kind: PrototypeOptions["kind"],
+  feedback?: string,
+): string {
   const transcript = answers
     .map((turn) => `  You asked: ${turn.question}\n  They said: ${turn.answer}`)
     .join("\n\n");
@@ -121,6 +128,10 @@ export function renderOrder(thought: string, answers: InterviewTurn[], kind: Pro
     `The idea, exactly as they typed it:\n\n${thought}`,
     answers.length > 0 ? `How it works, in their words:\n\n${transcript}` : null,
     KIND_NOTE[kind],
+    feedback
+      ? `They have seen a version of this already and said:\n\n${feedback}\n\nBuild it again, fixing that. Keep what they did not complain about.`
+      : null,
+    "Every piece of text must fit inside the shape that holds it — measure, wrap or shrink rather than letting a label run past its box or overlap another. A clipped label is a bug.",
     "Build it. Output the HTML document and nothing else.",
   ]
     .filter((part): part is string => part !== null)

@@ -8,6 +8,8 @@ import { readTheLog } from "./brief.js";
 import { describeFailure, developThought } from "./claude.js";
 import { loadConfig, MissingKeyError, type Config } from "./config.js";
 import { CreditStore } from "./credits.js";
+import { nextQuestion } from "./interview.js";
+import { streamPrototype } from "./prototype.js";
 import { JobStore, newJobId } from "./jobs.js";
 import { publicModes, resolveMode } from "./modes.js";
 import { RateLimiter } from "./ratelimit.js";
@@ -15,6 +17,7 @@ import { closeStream, openStream, sendEvent } from "./sse.js";
 import { CHAPTERS, writeTextbook } from "./textbook.js";
 import {
   normaliseProfile,
+  validateCreationRequest,
   validateBrief,
   validateChainsRequest,
   validateDevelopRequest,
@@ -91,6 +94,22 @@ async function handle(
       credits: credits.balance(token),
       known: credits.known(token),
     });
+  }
+
+  // Ask how the thing works. Cheap, unmetered, and capped at four answers.
+  if (url.pathname === "/api/interview") {
+    if (req.method !== "POST") return sendJson(res, 405, { error: "POST only." });
+    return interview(req, res, config, client, limiter);
+  }
+
+  // Build it. Paid, and run as a job so closing the app does not lose it.
+  if (url.pathname === "/api/creation") {
+    if (req.method !== "POST") return sendJson(res, 405, { error: "POST only." });
+    return startCreation(req, res, config, client, limiter, jobs, credits);
+  }
+
+  if (url.pathname.startsWith("/api/creation/")) {
+    return streamJob(res, jobs, url.pathname.slice("/api/creation/".length));
   }
 
   if (url.pathname === "/api/modes") {
@@ -190,6 +209,115 @@ async function develop(
   }
 
   closeStream(res);
+}
+
+async function interview(
+  req: IncomingMessage,
+  res: ServerResponse,
+  config: Config,
+  client: Anthropic,
+  limiter: RateLimiter,
+): Promise<void> {
+  const limit = limiter.check(clientKey(req));
+  if (!limit.allowed) {
+    res.setHeader("Retry-After", String(limit.retryAfter));
+    return sendJson(res, 429, { error: `Slow down — ${limit.retryAfter}s.` });
+  }
+
+  let request;
+  try {
+    const payload = await readJson(req, config.maxThoughtChars * 8);
+    request = validateCreationRequest(payload, {
+      maxThoughtChars: config.maxThoughtChars,
+      maxHistoryTurns: config.maxHistoryTurns,
+    });
+  } catch (error) {
+    if (error instanceof ValidationError) return sendJson(res, 400, { error: error.message });
+    return sendJson(res, 400, { error: (error as Error).message });
+  }
+
+  const abort = new AbortController();
+  res.on("close", () => abort.abort());
+
+  try {
+    const question = await nextQuestion({
+      client,
+      model: config.model,
+      thought: request.thought,
+      answers: request.answers,
+      signal: abort.signal,
+    });
+    if (res.writableEnded) return;
+    return sendJson(res, 200, { ...question, asked: request.answers.length });
+  } catch (error) {
+    if (res.writableEnded) return;
+    return sendJson(res, 502, { error: describeFailure(error).message });
+  }
+}
+
+async function startCreation(
+  req: IncomingMessage,
+  res: ServerResponse,
+  config: Config,
+  client: Anthropic,
+  limiter: RateLimiter,
+  jobs: JobStore,
+  credits: CreditStore,
+): Promise<void> {
+  const limit = limiter.check(clientKey(req));
+  if (!limit.allowed) {
+    res.setHeader("Retry-After", String(limit.retryAfter));
+    return sendJson(res, 429, { error: `Slow down — ${limit.retryAfter}s.` });
+  }
+
+  let request;
+  try {
+    const payload = await readJson(req, config.maxThoughtChars * 8);
+    request = validateCreationRequest(payload, {
+      maxThoughtChars: config.maxThoughtChars,
+      maxHistoryTurns: config.maxHistoryTurns,
+    });
+  } catch (error) {
+    if (error instanceof ValidationError) return sendJson(res, 400, { error: error.message });
+    return sendJson(res, 400, { error: (error as Error).message });
+  }
+
+  // A creation costs real money, so it is charged before anything reaches the
+  // model. The free first one is granted by the client today, which is a
+  // convenience and NOT an entitlement — see docs/SECURITY_RISKS.md.
+  const token = bearerToken(req, new URL(req.url ?? "/", "http://localhost"));
+  const paid = await credits.redeem(token);
+  if (!paid.ok) {
+    return sendJson(res, 402, {
+      error:
+        paid.reason === "empty"
+          ? "That was your last creation. Add more to keep going."
+          : "This one needs a creation credit.",
+      reason: paid.reason,
+    });
+  }
+
+  const id = newJobId();
+  jobs.start(
+    id,
+    () =>
+      streamPrototype({
+        client,
+        model: config.model,
+        thought: request.thought,
+        answers: request.answers,
+        kind: request.kind,
+        feedback: request.feedback,
+      }),
+    async (outcome) => {
+      if (outcome === "failed") {
+        await credits.refund(token);
+        console.log("creation failed; credit refunded");
+      }
+    },
+  );
+
+  return sendJson(res, 202, { id, creditsLeft: paid.remaining });
 }
 
 async function brief(

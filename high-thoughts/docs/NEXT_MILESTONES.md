@@ -1,5 +1,34 @@
 # Next milestones
 
+> **Milestone 1 is implemented.** What follows is kept for the record; the
+> acceptance criteria below were the targets and are now met except where
+> noted. See `PROJECT_STATUS.md` for verified results and
+> `docs/SECURITY_RISKS.md` for why public deployment remains blocked.
+
+## Milestone 2 — recommended next
+
+**Make it safe to put in front of strangers.** Milestone 1 built the product;
+none of it is abuse-resistant. In priority order:
+
+1. **Server-enforced free allowance.** Today the first free creation is granted
+   by the client and can be re-claimed by clearing site data. Needs a durable
+   per-identity record — the smallest honest version is a signed, server-issued
+   anonymous id stored alongside the credit token, with the allowance recorded
+   server-side.
+2. **Persistent throttling.** `ratelimit.ts` is in-memory and per-process.
+3. **Spend monitoring with a ceiling.** Per-request usage is already logged;
+   nothing aggregates it or stops.
+4. **Meter `/api/develop`, `/api/brief`, `/api/interview`.** All three spend
+   the operator's money with no credit.
+5. Fix the SVG clipping defect at the prompt level (the detector now reports
+   it; the generator should stop causing it).
+
+Only after those: deployment config, a host, and a Stripe payment link.
+
+---
+
+# Original Milestone 1 plan (delivered)
+
 **Principle:** finish the idea → library loop before anything else. No new
 infrastructure, no accounts, no external services until the loop is whole.
 

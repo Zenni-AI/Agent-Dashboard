@@ -7,10 +7,29 @@ something was not verified, it says so.
 
 ## One-line summary
 
-The **thought → conversation → book** product is complete and working. The
-**thought → interview → prototype** product that replaces it is proven at the
-model layer and **not connected to the app at all**. The repository currently
-ships the discontinued product.
+**Milestone 1 is delivered.** The loop runs end to end: catch an idea, answer
+two or three questions about how it works, get an interactive creation in a
+hardened sandbox, and find it again in the Idea Library next to what you
+originally typed. Verified live across three idea types.
+
+**Public deployment remains blocked** — see `SECURITY_RISKS.md`. The product is
+built; the abuse protections a public service needs are not.
+
+## Milestone 1 — verified end to end (2026-10-26)
+
+| Idea | Questions asked | Result |
+| --- | --- | --- |
+| "a backpack that turns into a chair when you sit down" | 2 | rendered, timeline complete |
+| "an app that only lets you text people you havent spoken to in a year" | 3 | rendered, timeline complete |
+| "a poster for a jazz night that doesnt look like a jazz poster" | 2 | rendered, 12.7 KB, clipped-text detector fired correctly |
+
+Every creation rendered with `sandbox="allow-scripts"` and the injected CSP
+present. Every idea survived a reload. Every timeline showed the original text
+verbatim.
+
+A fourth generation hit `max_tokens` exactly (32,000 out) and was therefore
+truncated mid-document. That is now caught and reported as "this one got too
+big", rather than rendering a half-drawn page.
 
 ## Build health
 

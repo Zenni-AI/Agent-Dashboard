@@ -1,5 +1,8 @@
 # Feature inventory
 
+> **Updated after Milestone 1 (2026-10-26).** Rows changed by the milestone are
+> marked ✱. Everything else was re-checked and is unchanged.
+
 Classification per feature. **"Verified" means exercised against the running
 system on 2026-10-26, not that source code exists.**
 
@@ -33,17 +36,23 @@ Legend: **1** working & verified · **2** implemented, under-tested · **3** par
 
 | Feature | # | Evidence |
 | --- | --- | --- |
-| Mechanism question generation | **3** | `interview.ts` — excellent output, verified by script: 3 questions on "i want a flying car", correctly classified `simulation`. **No route, no UI, no tests.** |
-| Four-question ceiling enforced in code | **2** | `interview.ts:101` — logic present, not unit-tested |
-| Ghost-text example answers | **3** | Produced correctly; never displayed to a user |
+| ✱ Mechanism question generation | **1** | `interview.ts` + `POST /api/interview` + interview screen. Verified live across 3 idea types. |
+| ✱ Four-question ceiling enforced server-side | **1** | `validate.ts:MAX_INTERVIEW_ANSWERS`. Verified: a client sending 5 answers gets `ready:true, asked:4`. |
+| ✱ Ghost-text example answers | **1** | Shown as the answer field's placeholder |
+| ✱ "Just build it" skip | **1** | `#iv-skip` |
+| ✱ Original idea preserved through the interview | **1** | `store.addAnswer` never touches `thought` |
 
 ## Artifact generation
 
 | Feature | # | Evidence |
 | --- | --- | --- |
-| Prototype generator | **3** | `prototype.ts`. **Generality verified** — 3 ideas across all 3 kinds produced working pages: flying car (simulation), argue-with-your-alarm (app), sad cereal box (design). All animated, 0 external resources, 0 console errors. **No route, no UI, no tests.** |
-| Prototype rendering in the app | **4** | **Nothing exists.** No iframe, no sandbox, no CSP anywhere in the repo. |
-| Textbook generator | **6** | `textbook.ts` — fully working and fully wired, but the direction is discontinued. Costs ~$1.20 vs the prototype's ~$0.50. |
+| ✱ Creation generator | **1** | `prototype.ts` + `POST /api/creation` (job) + `GET /api/creation/:id` (replayable stream) |
+| ✱ Secure rendering | **1** | `public/preview.js`. 12 attacks + network-egress test, all blocked. 10 unit tests. `npm run security` re-runs them. |
+| ✱ Recovery after closing the app | **1** | Saved on job start; re-attach replays from the beginning |
+| ✱ "Make it better" with feedback | **1** | Keeps the previous version rather than replacing it |
+| ✱ Clipped-text detection | **2** | A probe in the frame reports a count; drives a hint. The underlying generator defect is **not fixed**. |
+| ✱ Download a creation / export everything | **1** | Blob download; JSON backup of all ideas and creations |
+| ✱ Textbook | **6 → retired** | Removed from the UI. `textbook.ts`, its routes and tests remain; the ledger is shared so old credits still spend. Rollback is a UI change. |
 | Brief / log reader | **1** | `brief.ts` · verified: a line killed by hand landed in `ruledOut` |
 
 ## Library & persistence
@@ -52,9 +61,10 @@ Legend: **1** working & verified · **2** implemented, under-tested · **3** par
 | --- | --- | --- |
 | Thought log, newest first | **1** | `store.js:list()`, `app.js:renderLog` |
 | Tree/branch view | **4** | Flat list only |
-| Idea Library (chronological life of one idea) | **4** | **Not started.** Current "Library" screen lists books. |
-| Version history | **4** | Not started |
-| Export | **4** | Not started |
+| ✱ Idea Library (chronological life of one idea) | **1** | `#screen-idea` — one rail: what you typed (verbatim, visually distinct) → questions and answers → conversation passes → creations with live sandboxed thumbnails |
+| ✱ Version history | **1** | Every rebuild is a new creation; `version` and the `feedback` that caused it are kept and shown |
+| ✱ Export | **1** | Per-creation HTML download and a whole-library JSON backup |
+| ✱ Data-loss documentation | **1** | `docs/DATA_AND_BACKUP.md` — names Safari's ~7-day eviction, the 5 MB quota, and the 40-creation cap |
 | Sharing | **4** | Not started; blocked by local-only storage |
 | Offline shell | **2** | `sw.js` — registers, never tested after a real deploy |
 
@@ -66,7 +76,7 @@ Legend: **1** working & verified · **2** implemented, under-tested · **3** par
 | Paywall enforcement on books | **1** | Verified live: no token → 402, fake → 402, real → works then 402 |
 | Refund on failure | **2** | `server.ts` settle hook — logic present; **failure path never exercised end-to-end** |
 | Cross-process ledger reload | **1** | Verified live: granted while running, seen on the next request |
-| Free first creation | **4** | Not implemented; no free allowance exists |
+| ✱ Free first creation | **3** | **Client-granted only.** Clearing site data grants another. Costs ~$0.50 each time. Not an entitlement — see `SECURITY_RISKS.md`. |
 | Stripe / any payment provider | **4** | **Nothing.** Only comments mention Stripe. Codes are issued by `npm run credits`. |
 | Per-IP rate limit | **1** | `ratelimit.ts` · 5 tests |
 | Per-request token caps | **1** | `max_tokens` set on every call |

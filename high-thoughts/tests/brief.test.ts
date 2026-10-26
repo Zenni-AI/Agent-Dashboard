@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BriefSchema, renderChains } from "../src/brief.js";
 import { CHAPTERS, renderBrief, SYSTEM as TEXTBOOK_SYSTEM } from "../src/textbook.js";
+import { renderOrder, SYSTEM as PROTOTYPE_SYSTEM } from "../src/prototype.js";
 import {
   normaliseProfile,
   validateBrief,
@@ -207,5 +208,36 @@ describe("the textbook system prompt", () => {
 
   it("still forbids inventing sources", () => {
     expect(TEXTBOOK_SYSTEM).toMatch(/Never invent a figure, a supplier, a part number/);
+  });
+});
+
+describe("the creation prompt", () => {
+  it("forbids engineering-drawing output, which is the whole visual brief", () => {
+    expect(PROTOTYPE_SYSTEM).toMatch(/Do NOT produce a technical drawing/);
+    expect(PROTOTYPE_SYSTEM).toMatch(/Nobody shows their friend a schematic/);
+  });
+
+  it("requires their own words on the labels", () => {
+    expect(PROTOTYPE_SYSTEM).toMatch(/Label the parts with the words THEY used/);
+  });
+
+  it("requires it to move and to work offline", () => {
+    expect(PROTOTYPE_SYSTEM).toMatch(/It has to move/);
+    expect(PROTOTYPE_SYSTEM).toMatch(/no external scripts, fonts or images/);
+  });
+
+  it("keeps assumptions mandatory, which is what stops a confident wrong number", () => {
+    expect(PROTOTYPE_SYSTEM).toMatch(/the one or two things you had to assume/);
+    expect(PROTOTYPE_SYSTEM).toMatch(/Where you had to guess a number, say so/);
+  });
+
+  it("tells it not to let a label run past its box", () => {
+    expect(renderOrder("x", [], "simulation")).toMatch(/A clipped label is a bug/);
+  });
+
+  it("passes rebuild feedback through without discarding what worked", () => {
+    const order = renderOrder("x", [], "app", "the button is invisible");
+    expect(order).toContain("the button is invisible");
+    expect(order).toMatch(/Keep what they did not complain about/);
   });
 });

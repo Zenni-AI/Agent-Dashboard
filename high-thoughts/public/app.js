@@ -1187,20 +1187,23 @@ function renderIdea() {
 
       // A live thumbnail, under the same sandbox as the full preview.
       const host = document.createElement("span");
-      host.className = "thumb";
+      host.className = "tl-thumb";
       if (make.html) {
         const { html } = sanitizePrototype(make.html);
         const thumb = document.createElement("iframe");
-        thumb.className = "thumb";
         thumb.setAttribute("sandbox", "allow-scripts");
         thumb.setAttribute("referrerpolicy", "no-referrer");
         thumb.setAttribute("tabindex", "-1");
+        thumb.setAttribute("aria-hidden", "true");
         thumb.srcdoc = html;
-        host.replaceWith(thumb);
-        button.append(thumb);
-      } else {
-        button.append(host);
+        // Scale so the frame's 390px width fills whatever the card is wide.
+        requestAnimationFrame(() => {
+          const scale = host.clientWidth / 390;
+          thumb.style.transform = `scale(${scale})`;
+        });
+        host.append(thumb);
       }
+      button.append(host);
 
       const cap = document.createElement("span");
       cap.className = "cap";

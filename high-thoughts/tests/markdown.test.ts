@@ -120,10 +120,22 @@ describe("extractTitle", () => {
     expect(extractTitle('# "Sideways Doors"', "raw")).toBe("Sideways Doors");
   });
 
-  it("falls back to the first words of the raw thought", () => {
+  it("falls back to the raw thought, cut at a word and marked as cut", () => {
+    // A title that simply stops mid-sentence reads as a rendering bug; the
+    // ellipsis says the idea is longer than the heading.
     expect(extractTitle("## No title here", "what if the clouds paid rent to the sky itself")).toBe(
-      "what if the clouds paid rent",
+      "what if the clouds paid rent to the sky…",
     );
+  });
+
+  it("leaves a short thought alone", () => {
+    expect(extractTitle("", "a bus that reverses")).toBe("a bus that reverses");
+  });
+
+  it("never cuts in the middle of a word", () => {
+    const title = extractTitle("", "supercalifragilistic expialidocious antidisestablishmentarianism");
+    expect(title.endsWith("…")).toBe(true);
+    expect(title.replace("…", "").split(" ").pop()).not.toBe("antidisestablishmentar");
   });
 
   it("never returns an empty string", () => {

@@ -1192,13 +1192,36 @@ textarea::placeholder { color: var(--ink-faint); }
   cursor: pointer;
 }
 
-.tl-make .thumb {
+/*
+ * A creation is a full page. Shrinking the frame just shows its top-left
+ * corner, so render it at a real phone width and scale the whole thing down —
+ * what you recognise in a library is the shape of the thing, not a crop of it.
+ */
+.tl-thumb {
+  position: relative;
   display: block;
   width: 100%;
-  height: 128px;
+  height: 150px;
+  overflow: hidden;
+  background: #0b0a10;
+}
+
+.tl-thumb iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 390px;
+  height: 780px;
   border: 0;
   pointer-events: none;
-  background: #0b0a10;
+  transform-origin: top left;
+}
+
+.tl-thumb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(transparent 60%, rgba(11, 10, 16, 0.85));
 }
 
 .tl-make .cap {

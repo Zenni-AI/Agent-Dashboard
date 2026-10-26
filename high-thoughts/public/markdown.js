@@ -177,8 +177,15 @@ export function extractTitle(answer, fallback) {
   const title = match?.[1]?.trim().replace(/^["'"]|["'"]$/g, "");
   if (title) return title;
 
-  const words = String(fallback).trim().split(/\s+/).slice(0, 6).join(" ");
-  return words || "Untitled";
+  // Falling back to the raw thought: stop at a word boundary and say so,
+  // rather than ending mid-sentence as though the title were complete.
+  const raw = String(fallback).trim().replace(/\s+/g, " ");
+  if (!raw) return "Untitled";
+  if (raw.length <= 42) return raw;
+
+  const cut = raw.slice(0, 42);
+  const space = cut.lastIndexOf(" ");
+  return `${(space > 20 ? cut.slice(0, space) : cut).replace(/[,;:.]$/, "")}…`;
 }
 
 /**

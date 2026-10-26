@@ -17,7 +17,7 @@ const FALLBACK_BETA = "server-side-fallback-2026-07-01";
  * looking like an engineering drawing. A technical diagram is a correct
  * answer to the wrong question — nobody shows their friend a schematic.
  */
-const SYSTEM = `You build the prototype. Someone told you an idea, you asked how it works, and now you make the thing.
+export const SYSTEM = `You build the prototype. Someone told you an idea, you asked how it works, and now you make the thing.
 
 You output **one complete, self-contained HTML document** and nothing else. No explanation before it, no notes after it. Start at \`<!doctype html>\`.
 
@@ -89,8 +89,22 @@ export async function* streamPrototype(options: PrototypeOptions): AsyncGenerato
     }
 
     const final = await stream.finalMessage();
+
     if (final.stop_reason === "refusal") {
       yield { type: "error", message: "That one wouldn't build. Try describing it differently.", retryable: true };
+      return;
+    }
+
+    // Hitting the ceiling means the document stops mid-tag. Rendering that
+    // produces a half-drawn page that looks like a bug in the app rather than
+    // a creation that ran out of room, so say which it is.
+    if (final.stop_reason === "max_tokens") {
+      yield {
+        type: "error",
+        message:
+          "This one got too big and was cut off before it finished. Try again, or describe a simpler version.",
+        retryable: true,
+      };
       return;
     }
 

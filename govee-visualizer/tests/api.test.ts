@@ -33,6 +33,7 @@ interface Harness {
 
 const NOTIFY_CONFIG: Partial<Config> = {
   publicBaseUrl: 'https://lights.example.com',
+  smsEnabled: true,
   twilioAccountSid: 'AC123',
   twilioAuthToken: 'secret',
   twilioFrom: '+15550001111',
@@ -184,6 +185,18 @@ describe('address → Street View → three looks → text + email', () => {
     await h2.service.onIdle();
     expect(h2.sms).toHaveLength(0);
     expect(h2.emails).toHaveLength(0);
+  });
+
+  it('sends email only while texting is switched off (waiting on A2P approval)', async () => {
+    const h = await start({ smsEnabled: false });
+    const { body } = await submit(h.base, {}, await houseJpeg());
+    await waitForDesign(h.base, body.designId!);
+    await h.service.onIdle();
+    expect(h.sms).toHaveLength(0);
+    expect(h.emails).toHaveLength(1);
+    expect(h.store.get(body.designId!)).toMatchObject({ smsStatus: 'disabled', emailStatus: 'sent' });
+    const config = await (await fetch(`${h.base}/api/config`)).json();
+    expect(config).toMatchObject({ sms: false, email: true });
   });
 
   it('skips texts and emails cleanly when they are not configured', async () => {

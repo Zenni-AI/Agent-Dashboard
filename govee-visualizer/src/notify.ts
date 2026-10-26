@@ -38,7 +38,7 @@ export class Notifier {
 
   get smsEnabled(): boolean {
     const c = this.config;
-    return Boolean(c.twilioAccountSid && c.twilioAuthToken && (c.twilioFrom || c.twilioMessagingServiceSid) && c.publicBaseUrl);
+    return Boolean(c.smsEnabled && c.twilioAccountSid && c.twilioAuthToken && (c.twilioFrom || c.twilioMessagingServiceSid) && c.publicBaseUrl);
   }
 
   get emailEnabled(): boolean {

@@ -26,9 +26,10 @@ const server = app.listen(config.port, () => {
   console.log(`Govee visualizer listening on http://localhost:${config.port}`);
   console.log(`  image provider: ${provider.name}${provider.name === 'mock' ? ' (DEMO MODE — set GEMINI_API_KEY for real renders)' : ''}`);
   console.log(`  street view:    ${streetView.enabled ? 'on' : off('GOOGLE_MAPS_SERVER_KEY; visitors must upload a photo')}`);
-  console.log(`  text messages:  ${notifier.smsEnabled ? 'on' : off('TWILIO_* and PUBLIC_BASE_URL')}`);
+  console.log(`  text messages:  ${notifier.smsEnabled ? 'on' : off('SMS_ENABLED=true, TWILIO_* and PUBLIC_BASE_URL')}`);
   console.log(`  email:          ${notifier.emailEnabled ? 'on' : off('SMTP_URL, EMAIL_FROM and PUBLIC_BASE_URL')}`);
   console.log(`  concurrency:    ${config.maxConcurrentGenerations} simultaneous AI renders`);
+  if (!config.privacyUrl) console.warn('  warning: PRIVACY_URL is not set — add a privacy policy before running ads');
   if (!config.adminPassword) console.log('  admin export:   disabled (set ADMIN_PASSWORD to enable /admin/leads.csv)');
   if (config.publicBaseUrl && !config.publicBaseUrl.startsWith('https://')) {
     console.warn('  warning: PUBLIC_BASE_URL is not https — picture texts need a public https URL');

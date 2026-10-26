@@ -10,12 +10,13 @@ const notice: DesignNotice = {
   designUrl: 'https://lights.example.com/d/abc',
   looks: [{ label: 'Warm White', imagePath: '/x.jpg', imageUrl: 'https://lights.example.com/img/x.jpg' }],
 };
-const twilio = { publicBaseUrl: 'https://lights.example.com', twilioAccountSid: 'AC1', twilioAuthToken: 't', twilioMessagingServiceSid: 'MG1' };
+const twilio = { smsEnabled: true, publicBaseUrl: 'https://lights.example.com', twilioAccountSid: 'AC1', twilioAuthToken: 't', twilioMessagingServiceSid: 'MG1' };
 
 describe('Notifier', () => {
   it('is off unless fully configured', () => {
     expect(new Notifier(testConfig()).smsEnabled).toBe(false);
     expect(new Notifier(testConfig({ ...twilio, publicBaseUrl: '' })).smsEnabled).toBe(false);
+    expect(new Notifier(testConfig({ ...twilio, smsEnabled: false })).smsEnabled).toBe(false);
     expect(new Notifier(testConfig(twilio)).smsEnabled).toBe(true);
   });
 

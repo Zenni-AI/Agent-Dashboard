@@ -1,6 +1,6 @@
 # Govee Lights Visualizer — lead-gen site
 
-A landing page you can send ad traffic to. Visitors enter **name, email, phone and home address**. The site pulls up their house on Google Street View and creates **three AI images of it at dusk with Govee Permanent Outdoor Lights Pro on the roofline**: Warm White, Holiday and Multicolor. They can watch the looks appear on the page, or close it: when the images are ready, they get them by **text message and email** either way.
+A landing page you can send ad traffic to. Visitors enter **name, email, phone and home address**. The site pulls up their house on Google Street View and creates **three AI images of it at dusk with Govee Permanent Outdoor Lights Pro on the roofline**: Warm White, Holiday and Multicolor. They can watch the looks appear on the page, or close it: when the images are ready, they get them by **email** either way (and by **text message** too once texting is switched on).
 
 ```
 form submit ──► lead saved (SQLite) ──► Geocoding ──► Street View photo, aimed straight at the house
@@ -47,11 +47,13 @@ The house photo goes to an AI image-editing model with an installer-style brief 
 
 To change the three looks, edit `THEMES` in `src/themes.ts`. Every theme is one more AI image per lead.
 
-## Text messages and email
+## Email now, text messages later
+
+**Email is on as soon as `SMTP_URL` and `EMAIL_FROM` are set. Texting stays off until `SMS_ENABLED=true`.** You can enter the Twilio settings while A2P registration is pending; nothing is texted until you flip the switch. The page only promises the channels that are actually on ("We'll email your 3 designs to you").
 
 As soon as all three looks are done (or as many as succeeded), the visitor gets:
 
-- **Text (Twilio):** a picture message with the Warm White image plus a link to see all three looks, your phone number, and "Reply STOP to opt out" (Twilio handles opt-outs automatically).
+- **Text (Twilio, once `SMS_ENABLED=true`):** a picture message with the Warm White image plus a link to see all three looks, your phone number, and "Reply STOP to opt out" (Twilio handles opt-outs automatically).
 - **Email (any SMTP provider):** all three images inline, a "See my design" button, and your phone number.
 
 Each design is texted and emailed **at most once**, even across restarts. The result (`sent`, `failed` or `disabled`) is saved on the design and shown on the page, so it never claims a message went out when it didn't.
@@ -99,9 +101,10 @@ npm test
 
 1. **Google Cloud**: enable *Geocoding API*, *Street View Static API*, *Maps JavaScript API* and *Places API (New)*. Create a **server key** limited to Geocoding + Street View Static, and a **browser key** limited to Maps JS + Places and restricted to your domain.
 2. **Gemini key** from https://aistudio.google.com/apikey, on a paid tier.
-3. **Twilio**: buy a number and complete **A2P 10DLC registration** (or toll-free verification). US carriers block unregistered business texting, and approval can take days to weeks, so start this first.
+3. **Twilio (later)**: buy a number and complete **A2P 10DLC registration** (or toll-free verification). US carriers block unregistered business texting. When approved, add the Twilio settings and set `SMS_ENABLED=true`.
 4. **Email**: any SMTP provider. Verify your sending domain (SPF/DKIM) so the emails don't land in spam.
-5. **Deploy** the Dockerfile to a host with a persistent disk at `/data` (Render, Railway, Fly.io…). Set `PUBLIC_BASE_URL=https://your-domain` (texts need https) and `TRUST_PROXY=1`.
+5. **Privacy policy**: set `PRIVACY_URL`. It's linked under the form and in the footer, and Google/Meta ads expect it.
+6. **Deploy** the Dockerfile to a host with a persistent disk at `/data` (Render, Railway, Fly.io…). Set `PUBLIC_BASE_URL=https://your-domain` (texts need https) and `TRUST_PROXY=1`.
 
 Rough cost per lead: Google Maps ≈ $0.01, Gemini Flash Image ≈ $0.04 × 3 looks ≈ $0.12, text ≈ $0.02 (picture messages cost more than plain texts), email ≈ free. **About $0.15–0.20 per lead.** Check current pricing pages.
 

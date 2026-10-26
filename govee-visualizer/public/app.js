@@ -36,6 +36,12 @@ async function init() {
     call.textContent = `Call ${c.businessPhone}`;
     call.hidden = false;
   }
+  if (c.privacyUrl && /^https?:\/\//.test(c.privacyUrl)) {
+    $$('[data-privacy]').forEach((el) => {
+      el.querySelector('a').href = c.privacyUrl;
+      el.hidden = false;
+    });
+  }
   if (c.ctaUrl && /^https?:\/\//.test(c.ctaUrl)) {
     $('#cta-link').href = c.ctaUrl;
     $('#cta-link').hidden = false;

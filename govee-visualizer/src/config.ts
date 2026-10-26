@@ -32,6 +32,8 @@ export interface Config {
   /** Distance between lights described to the AI. Match it to the kit you install. */
   lightSpacingInches: number;
 
+  /** Master switch for texting, so Twilio can be configured while A2P registration is pending. */
+  smsEnabled: boolean;
   twilioAccountSid: string;
   twilioAuthToken: string;
   twilioFrom: string;
@@ -46,6 +48,8 @@ export interface Config {
   businessName: string;
   businessPhone: string;
   ctaUrl: string;
+  /** Your privacy policy. Ad platforms expect one on pages that collect contact details. */
+  privacyUrl: string;
 }
 
 function int(name: string, fallback: number): number {
@@ -101,6 +105,7 @@ export function loadConfig(): Config {
     maxDesignsPerLead: Math.max(1, int('MAX_DESIGNS_PER_LEAD', 3)),
     lightSpacingInches: Math.max(2, int('LIGHT_SPACING_INCHES', 12)),
 
+    smsEnabled: str('SMS_ENABLED').toLowerCase() === 'true',
     twilioAccountSid: str('TWILIO_ACCOUNT_SID'),
     twilioAuthToken: str('TWILIO_AUTH_TOKEN'),
     twilioFrom: str('TWILIO_FROM_NUMBER'),
@@ -114,5 +119,6 @@ export function loadConfig(): Config {
     businessName: str('BUSINESS_NAME', 'Bright Home Lighting'),
     businessPhone: str('BUSINESS_PHONE'),
     ctaUrl: str('CTA_URL'),
+    privacyUrl: str('PRIVACY_URL'),
   };
 }

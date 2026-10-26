@@ -89,6 +89,7 @@ export function createApp(deps: AppDeps) {
       businessName: config.businessName,
       businessPhone: config.businessPhone,
       ctaUrl: config.ctaUrl,
+      privacyUrl: config.privacyUrl,
       sms: deps.notifier.smsEnabled,
       email: deps.notifier.emailEnabled,
       demoMode: deps.provider.name === 'mock',

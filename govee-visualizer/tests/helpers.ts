@@ -29,6 +29,7 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
     generationTimeoutMs: 10_000,
     maxDesignsPerLead: 2,
     lightSpacingInches: 12,
+    smsEnabled: false,
     twilioAccountSid: '',
     twilioAuthToken: '',
     twilioFrom: '',
@@ -40,6 +41,7 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
     businessName: 'Test Lighting',
     businessPhone: '',
     ctaUrl: '',
+    privacyUrl: '',
     ...overrides,
   };
 }

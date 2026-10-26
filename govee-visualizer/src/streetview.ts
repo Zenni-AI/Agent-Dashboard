@@ -7,8 +7,10 @@ import { JobFailure } from './queue.js';
  *   2. Street View meta   house coordinates   -> nearest outdoor panorama and where its camera stands
  *   3. Street View Static camera + heading    -> 640x480 JPEG looking from the street at the house
  *
- * Step 3 is the trick that makes this work: the heading is the compass bearing from the panorama's camera
- * to the house, so the picture is aimed at the house rather than straight down the road.
+ * Step 3 is the trick that makes this work. The nearest panorama to the house is (almost always) the spot
+ * on the street directly in front of it, and the heading is the compass bearing from that camera to the
+ * house, so the picture faces the house head-on rather than looking down the road. The zoom (field of
+ * view) is set from the camera-to-house distance so the whole roofline fits in frame.
  * Metadata requests are free; Geocoding and Static images are billed per request.
  */
 
@@ -28,11 +30,33 @@ export interface HouseImage {
   geocode: GeocodeResult;
   panoId: string;
   heading: number;
+  /** Metres from the Street View camera to the house. */
+  distance: number;
+  fov: number;
 }
 
 type FetchFn = typeof fetch;
 
 const MAPS = 'https://maps.googleapis.com/maps/api';
+
+/** Great-circle distance in metres. */
+export function distanceMeters(a: LatLng, b: LatLng): number {
+  const rad = Math.PI / 180;
+  const dφ = (b.lat - a.lat) * rad;
+  const dλ = (b.lng - a.lng) * rad;
+  const h = Math.sin(dφ / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dλ / 2) ** 2;
+  return 2 * 6_371_000 * Math.asin(Math.sqrt(h));
+}
+
+/**
+ * Field of view that frames a typical house (~20 m wide plus margin) at the given distance:
+ * close houses get a wide angle, distant ones are zoomed in. Clamped to what still looks natural.
+ */
+export function fovForDistance(meters: number): number {
+  const frameWidth = 28;
+  const fov = (2 * Math.atan(frameWidth / 2 / Math.max(meters, 1)) * 180) / Math.PI;
+  return Math.round(Math.min(100, Math.max(45, fov)));
+}
 
 /** Initial compass bearing in degrees (0 = north, clockwise) from `from` to `to`. */
 export function bearing(from: LatLng, to: LatLng): number {
@@ -90,12 +114,15 @@ export class StreetView {
     if (meta.status !== 'OK') throw new Error(`Street View metadata failed: ${meta.status} ${meta.error_message ?? ''}`);
 
     const heading = bearing(meta.location, geocode);
+    const distance = distanceMeters(meta.location, geocode);
+    const fov = fovForDistance(distance);
     const imgParams = new URLSearchParams({
       size: '640x480',
       pano: meta.pano_id,
       heading: heading.toFixed(1),
-      pitch: '8',
-      fov: '80',
+      // Tilt up slightly so the roofline, where the lights go, sits comfortably in frame.
+      pitch: '10',
+      fov: String(fov),
       source: 'outdoor',
       return_error_code: 'true',
       key: this.apiKey,
@@ -105,7 +132,7 @@ export class StreetView {
       throw new JobFailure('no_street_view', "Google doesn't have a street photo of this address. Upload a photo of your house and we'll light it up.");
     }
     if (!res.ok) throw new Error(`Street View image failed: HTTP ${res.status}`);
-    return { jpeg: Buffer.from(await res.arrayBuffer()), geocode, panoId: meta.pano_id, heading };
+    return { jpeg: Buffer.from(await res.arrayBuffer()), geocode, panoId: meta.pano_id, heading, distance, fov };
   }
 
   private async getJson(url: string): Promise<any> {

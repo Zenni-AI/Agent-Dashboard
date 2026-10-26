@@ -29,14 +29,14 @@ describe('leadSchema', () => {
 
 describe('leadsToCsv', () => {
   it('neutralises spreadsheet formulas and escapes quotes', () => {
-    const lead = { id: 'x', createdAt: 't', name: '=HYPERLINK("http://evil")', email: 'a@b.c', phone: '+1', address: 'A "B"', consent: true, renderCount: 0 } as Lead;
+    const lead = { id: 'x', createdAt: 't', name: '=HYPERLINK("http://evil")', email: 'a@b.c', phone: '+1', address: 'A "B"', consent: true } as Lead;
     const csv = leadsToCsv([lead], 'https://x');
     expect(csv).toContain(`"'=HYPERLINK(""http://evil"")"`);
     expect(csv).toContain('"A ""B"""');
   });
 
   it('keeps E.164 phone numbers readable but still guards other leading "+"', () => {
-    const lead = { id: 'x', createdAt: 't', name: '+1+cmd|calc', email: 'a@b.c', phone: '+15552345678', address: 'A', consent: true, renderCount: 0 } as Lead;
+    const lead = { id: 'x', createdAt: 't', name: '+1+cmd|calc', email: 'a@b.c', phone: '+15552345678', address: 'A', consent: true } as Lead;
     const csv = leadsToCsv([lead], '');
     expect(csv).toContain('"+15552345678"');
     expect(csv).toContain(`"'+1+cmd|calc"`);

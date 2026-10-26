@@ -6,14 +6,16 @@ import { rateLimit } from 'express-rate-limit';
 import helmet from 'helmet';
 import multer from 'multer';
 import type { Config } from './config.js';
+import { DESIGN_ID } from './designStore.js';
+import type { DesignService } from './designs.js';
 import { normalizePhoto, type ImageStore } from './images.js';
-import { leadsToCsv, sendWebhook, type Lead, type LeadStore } from './leads.js';
+import { leadsToCsv, sendWebhook, type LeadStore } from './leads.js';
+import type { Notifier } from './notify.js';
 import type { ImageProvider } from './providers/index.js';
-import { JobFailure, JobQueue, QueueFullError } from './queue.js';
-import { createRenderWorker, type RenderInput, type RenderResult } from './render.js';
+import { JobFailure, QueueFullError } from './queue.js';
 import type { StreetView } from './streetview.js';
-import { DEFAULT_THEME, THEMES } from './themes.js';
-import { firstIssue, leadSchema, renderSchema } from './validation.js';
+import { THEMES } from './themes.js';
+import { firstIssue, leadSchema } from './validation.js';
 
 export interface AppDeps {
   config: Config;
@@ -21,17 +23,14 @@ export interface AppDeps {
   images: ImageStore;
   streetView: StreetView;
   provider: ImageProvider;
+  notifier: Notifier;
+  designs: DesignService;
 }
 
 const PUBLIC_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../public');
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export function createApp(deps: AppDeps) {
-  const { config, leads, images } = deps;
-  const queue = new JobQueue<RenderInput, RenderResult>(createRenderWorker(deps), {
-    concurrency: config.maxConcurrentGenerations,
-    maxQueued: config.maxQueueLength,
-  });
+  const { config, leads, images, designs } = deps;
 
   const app = express();
   app.disable('x-powered-by');
@@ -71,7 +70,14 @@ export function createApp(deps: AppDeps) {
     });
 
   app.get('/healthz', (_req, res) => {
-    res.json({ ok: true, provider: deps.provider.name, streetView: deps.streetView.enabled, queue: queue.stats() });
+    res.json({
+      ok: true,
+      provider: deps.provider.name,
+      streetView: deps.streetView.enabled,
+      sms: deps.notifier.smsEnabled,
+      email: deps.notifier.emailEnabled,
+      queues: designs.stats(),
+    });
   });
 
   app.get('/api/config', (_req, res) => {
@@ -83,10 +89,10 @@ export function createApp(deps: AppDeps) {
       businessName: config.businessName,
       businessPhone: config.businessPhone,
       ctaUrl: config.ctaUrl,
-      maxRendersPerLead: config.maxRendersPerLead,
+      sms: deps.notifier.smsEnabled,
+      email: deps.notifier.emailEnabled,
       demoMode: deps.provider.name === 'mock',
       themes: THEMES.map(({ id, label, swatch }) => ({ id, label, swatch })),
-      defaultTheme: DEFAULT_THEME,
     });
   });
 
@@ -96,23 +102,8 @@ export function createApp(deps: AppDeps) {
     return images.save(await normalizePhoto(req.file.buffer));
   }
 
-  function startRender(res: Response, lead: Lead, input: Omit<RenderInput, 'leadId' | 'address' | 'placeId'>, status: number) {
-    if (!leads.reserveRender(lead.id, config.maxRendersPerLead)) {
-      res.status(429).json({ error: `You've used all ${config.maxRendersPerLead} free previews. We'll be in touch with your design!`, leadId: lead.id });
-      return;
-    }
-    try {
-      const job = queue.enqueue({ ...input, leadId: lead.id, address: lead.address, ...(lead.placeId ? { placeId: lead.placeId } : {}) });
-      const used = leads.get(lead.id)?.renderCount ?? config.maxRendersPerLead;
-      res.status(status).json({ leadId: lead.id, jobId: job.id, rendersRemaining: Math.max(0, config.maxRendersPerLead - used) });
-    } catch (err) {
-      leads.releaseRender(lead.id);
-      if (err instanceof QueueFullError) {
-        res.status(503).set('retry-after', '30').json({ error: err.message, leadId: lead.id });
-        return;
-      }
-      throw err;
-    }
+  function queueFull(res: Response, err: QueueFullError) {
+    res.status(503).set('retry-after', '30').json({ error: err.message });
   }
 
   app.post('/api/leads', limiter(15 * 60_000, 10), upload.single('photo'), async (req, res) => {
@@ -123,7 +114,7 @@ export function createApp(deps: AppDeps) {
     }
     const d = parsed.data;
     // Validate the photo before recording the lead so a bad file gets a clear error and a clean retry.
-    const beforeImage = await savePhoto(req);
+    const photo = await savePhoto(req);
     const lead = leads.create({
       name: d.name,
       email: d.email,
@@ -138,49 +129,62 @@ export function createApp(deps: AppDeps) {
       ...(req.ip ? { ip: req.ip } : {}),
       userAgent: (req.get('user-agent') ?? '').slice(0, 300),
     });
-    const { ip: _ip, userAgent: _ua, ...publicLead } = lead;
+    const { ip: _ip, userAgent: _ua, latestDesignId: _d, ...publicLead } = lead;
     void sendWebhook(config.leadWebhookUrl, { event: 'lead.created', ...publicLead });
 
-    startRender(res, lead, { themeId: d.theme ?? DEFAULT_THEME, ...(beforeImage ? { beforeImage, beforeSource: 'upload' as const } : {}) }, 202);
+    try {
+      const design = designs.start(lead, photo);
+      res.status(202).json({ designId: design.id });
+    } catch (err) {
+      // The lead is saved either way; the business can still follow up.
+      if (err instanceof QueueFullError) return queueFull(res, err);
+      throw err;
+    }
   });
 
-  app.post('/api/leads/:leadId/renders', limiter(15 * 60_000, 30), upload.single('photo'), async (req, res) => {
-    const leadId = String(req.params.leadId);
-    const lead = UUID.test(leadId) ? leads.get(leadId) : undefined;
+  app.get('/api/designs/:id', limiter(60_000, 600), (req, res) => {
+    const id = String(req.params.id);
+    const view = DESIGN_ID.test(id) ? designs.view(id) : undefined;
+    if (!view) {
+      res.status(404).json({ error: 'We couldn’t find this design.' });
+      return;
+    }
+    res.set('cache-control', 'no-store').json(view);
+  });
+
+  /** "Not your house?" — start a new design for the same lead from an uploaded photo. */
+  app.post('/api/designs/:id/photo', limiter(15 * 60_000, 20), upload.single('photo'), async (req, res) => {
+    const id = String(req.params.id);
+    const leadId = DESIGN_ID.test(id) ? designs.leadIdOf(id) : undefined;
+    const lead = leadId ? leads.get(leadId) : undefined;
     if (!lead) {
-      res.status(404).json({ error: 'We couldn’t find your request. Please fill in the form again.' });
+      res.status(404).json({ error: 'We couldn’t find this design. Please fill in the form again.' });
       return;
     }
-    const parsed = renderSchema.safeParse(req.body ?? {});
-    if (!parsed.success) {
-      res.status(400).json({ error: firstIssue(parsed.error) });
+    if (!req.file) {
+      res.status(400).json({ error: 'Please choose a photo of your house.' });
       return;
     }
-    const themeId = parsed.data.theme ?? DEFAULT_THEME;
-    const uploaded = await savePhoto(req);
-    if (uploaded) {
-      startRender(res, lead, { themeId, beforeImage: uploaded, beforeSource: 'upload' }, 202);
-    } else if (parsed.data.reuse === 'last' && lead.lastBeforeImage) {
-      startRender(res, lead, { themeId, beforeImage: lead.lastBeforeImage, beforeSource: lead.lastSource ?? 'upload' }, 202);
-    } else {
-      startRender(res, lead, { themeId }, 202);
+    if (!designs.canCreateAnother(lead.id)) {
+      res.status(429).json({ error: 'You’ve used all your free designs. We’ll be in touch with a quote!' });
+      return;
+    }
+    const photo = (await savePhoto(req))!;
+    try {
+      res.status(202).json({ designId: designs.start(lead, photo).id });
+    } catch (err) {
+      if (err instanceof QueueFullError) return queueFull(res, err);
+      throw err;
     }
   });
 
-  app.get('/api/jobs/:id', limiter(60_000, 600), (req, res) => {
-    const job = queue.get(String(req.params.id));
-    if (!job) {
-      res.status(404).json({ error: 'This preview has expired. Please try again.' });
+  // Shareable design page (the link we text and email). Same single-page app.
+  app.get('/d/:id', (req, res) => {
+    if (!DESIGN_ID.test(String(req.params.id))) {
+      res.redirect('/');
       return;
     }
-    res.set('cache-control', 'no-store');
-    res.json({
-      status: job.status,
-      stage: job.stage,
-      position: job.position,
-      ...(job.result ? { result: job.result } : {}),
-      ...(job.error ? { error: job.error } : {}),
-    });
+    res.set('cache-control', 'no-cache').set('x-robots-tag', 'noindex').sendFile(path.join(PUBLIC_DIR, 'index.html'));
   });
 
   app.get('/img/:file', (req, res) => {
@@ -224,7 +228,7 @@ export function createApp(deps: AppDeps) {
     res.status(500).json({ error: 'Something went wrong. Please try again.' });
   });
 
-  return { app, queue };
+  return app;
 }
 
 function checkBasicAuth(header: string | undefined, password: string): boolean {

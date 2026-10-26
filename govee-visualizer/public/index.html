@@ -61,11 +61,6 @@
         </label>
         <input type="hidden" name="placeId">
 
-        <fieldset class="field">
-          <legend>Pick a look</legend>
-          <div class="themes" data-themes="form"></div>
-        </fieldset>
-
         <div class="upload">
           <label class="upload-toggle">
             <input type="file" name="photo" accept="image/*" id="form-photo">
@@ -87,16 +82,12 @@
       </form>
     </section>
 
-    <!-- Step 2: waiting -->
+    <!-- Step 2: finding the house -->
     <section class="card progress" id="step-progress" hidden aria-live="polite">
       <div class="bulbs" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
       <h2 id="progress-title">Finding your house…</h2>
-      <p id="progress-detail" class="muted">This usually takes 15–40 seconds.</p>
-      <ol class="stages">
-        <li data-stage="locating">Finding your house</li>
-        <li data-stage="rendering">Installing your lights</li>
-        <li data-stage="finishing">Final touches</li>
-      </ol>
+      <p id="progress-detail" class="muted">Pulling up your home on Google Street View.</p>
+      <p class="notice" data-notice hidden></p>
     </section>
 
     <!-- Step 2b: we need a photo -->
@@ -108,37 +99,36 @@
         <span class="cta">📷 Upload a photo of your house</span>
       </label>
       <p class="hint">Tip: stand across the street in daylight and get the whole roofline in the frame.</p>
-      <button class="link" type="button" id="retry-btn" hidden>Or try again</button>
     </section>
 
-    <!-- Step 3: the result -->
+    <!-- Step 3: the design -->
     <section class="result" id="step-result" hidden>
       <div class="result-head">
         <h2>Here's <span data-bind="firstName">your</span> home with permanent lights ✨</h2>
         <p class="muted" id="result-address"></p>
       </div>
+      <p class="notice" data-notice hidden></p>
+
+      <div class="looks" id="looks" role="tablist" aria-label="Lighting looks"></div>
 
       <div class="compare" id="compare">
-        <img id="after-img" alt="Your house at dusk with permanent outdoor lights installed">
-        <div class="compare-before" id="before-wrap"><img id="before-img" alt="Your house as it looks today"></div>
-        <div class="compare-handle" id="compare-handle" aria-hidden="true"><span>⟷</span></div>
-        <input type="range" min="0" max="100" value="50" id="compare-range" aria-label="Drag to compare before and after">
-        <span class="tag tag-before">Before</span>
-        <span class="tag tag-after">After</span>
-        <div class="compare-busy" id="compare-busy" hidden><div class="bulbs small" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><span>Re-lighting…</span></div>
+        <img id="before-base" alt="Your house as it looks today">
+        <img id="after-img" alt="" hidden>
+        <div class="compare-before" id="before-wrap" hidden><img id="before-img" alt="Your house as it looks today"></div>
+        <div class="compare-handle" id="compare-handle" aria-hidden="true" hidden><span>⟷</span></div>
+        <input type="range" min="0" max="100" value="50" id="compare-range" aria-label="Drag to compare before and after" hidden>
+        <span class="tag tag-before" id="tag-before">Before</span>
+        <span class="tag tag-after" id="tag-after" hidden>After</span>
+        <div class="compare-busy" id="compare-busy" hidden><div class="bulbs small" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><span id="busy-text">Installing your lights…</span></div>
       </div>
 
       <div class="result-tools">
-        <div>
-          <p class="tool-label">Try another look <small class="muted" id="renders-left"></small></p>
-          <div class="themes" data-themes="result"></div>
-        </div>
         <div class="result-actions">
-          <label class="upload-toggle">
+          <label class="upload-toggle" id="swap-photo-wrap">
             <input type="file" accept="image/*" id="swap-photo">
             <span class="ghost">Not your house? Upload a photo</span>
           </label>
-          <a class="ghost" id="download-link" download="my-house-lit-up.jpg">Download image</a>
+          <a class="ghost" id="download-link" download="my-house-lit-up.jpg" hidden>Download this look</a>
         </div>
         <p class="form-error" id="result-error" role="alert" hidden></p>
       </div>

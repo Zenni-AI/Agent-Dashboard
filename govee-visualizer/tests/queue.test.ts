@@ -65,3 +65,29 @@ describe('JobQueue', () => {
     q.close();
   });
 });
+
+describe('JobQueue priority', () => {
+  it('runs priority jobs before normal ones, each group in arrival order', async () => {
+    const order: string[] = [];
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const q = new JobQueue<string, void>(
+      async (name) => {
+        if (name === 'blocker') await gate;
+        order.push(name);
+      },
+      { concurrency: 1, maxQueued: 100 },
+    );
+    q.enqueue('blocker');
+    const a2 = q.enqueue('a2');
+    q.enqueue('b2');
+    q.enqueue('a1', { priority: true });
+    const b1 = q.enqueue('b1', { priority: true });
+    expect(q.get(b1.id)!.position).toBe(2);
+    expect(q.get(a2.id)!.position).toBe(3);
+    release();
+    await q.onIdle();
+    expect(order).toEqual(['blocker', 'a1', 'b1', 'a2', 'b2']);
+    q.close();
+  });
+});

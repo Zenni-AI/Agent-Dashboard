@@ -1,14 +1,10 @@
 import sharp from 'sharp';
-import { getTheme } from '../themes.js';
 import type { ImageProvider, RenderRequest } from './types.js';
 
 const THEME_COLORS: Record<string, string[]> = {
   warm_white: ['#ffd9a0'],
-  christmas: ['#ff3b30', '#34c759', '#fff4d6'],
-  halloween: ['#ff8f00', '#a020f0'],
-  patriotic: ['#ff3b30', '#ffffff', '#2f7bff'],
-  rainbow: ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#2f7bff', '#af52de'],
-  ice_blue: ['#8fd8ff', '#ffffff'],
+  holiday: ['#ff3b30', '#34c759', '#fff4d6'],
+  multicolor: ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#2f7bff', '#af52de'],
 };
 
 /**
@@ -26,7 +22,7 @@ export class MockProvider implements ImageProvider {
       signal.addEventListener('abort', () => (clearTimeout(t), reject(signal.reason)), { once: true });
     });
     const { width = 640, height = 480 } = await sharp(image).metadata();
-    const colors = THEME_COLORS[getTheme(themeId).id] ?? ['#ffd9a0'];
+    const colors = THEME_COLORS[themeId] ?? ['#ffd9a0'];
     const y = Math.round(height * 0.32);
     const step = Math.max(14, Math.round(width / 40));
     let dots = '';

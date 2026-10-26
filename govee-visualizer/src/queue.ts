@@ -56,6 +56,8 @@ export interface QueueOptions {
 export class JobQueue<I, R> {
   private readonly jobs = new Map<string, Job<I, R>>();
   private readonly pending: string[] = [];
+  /** Priority jobs sit at the front of `pending`; this many of them are there. */
+  private priorityCount = 0;
   private running = 0;
   private readonly retainMs: number;
   private readonly sweeper: NodeJS.Timeout;
@@ -70,12 +72,14 @@ export class JobQueue<I, R> {
     this.sweeper.unref();
   }
 
-  enqueue(input: I): Job<I, R> {
+  /** `priority` jobs go ahead of normal ones (still first-come-first-served among themselves). */
+  enqueue(input: I, { priority = false } = {}): Job<I, R> {
     if (this.pending.length >= this.opts.maxQueued) throw new QueueFullError();
     const now = Date.now();
     const job: Job<I, R> = { id: randomUUID(), status: 'queued', stage: 'queued', input, createdAt: now, updatedAt: now };
     this.jobs.set(job.id, job);
-    this.pending.push(job.id);
+    if (priority) this.pending.splice(this.priorityCount++, 0, job.id);
+    else this.pending.push(job.id);
     this.pump();
     return job;
   }
@@ -105,6 +109,7 @@ export class JobQueue<I, R> {
   private pump() {
     while (this.running < this.opts.concurrency && this.pending.length > 0) {
       const id = this.pending.shift()!;
+      if (this.priorityCount > 0) this.priorityCount--;
       const job = this.jobs.get(id);
       if (!job) continue;
       this.running++;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { JobFailure } from '../src/queue.js';
-import { bearing, StreetView } from '../src/streetview.js';
+import { bearing, distanceMeters, fovForDistance, StreetView } from '../src/streetview.js';
 
 describe('bearing', () => {
   it('points the camera from the street to the house', () => {
@@ -59,5 +59,17 @@ describe('StreetView.fetchHouseImage', () => {
     const err = await sv.fetchHouseImage('nowhere').catch((e) => e);
     expect(err).toBeInstanceOf(JobFailure);
     expect(err.code).toBe('address_not_found');
+  });
+});
+
+describe('framing', () => {
+  it('zooms in on distant houses and widens for close ones', () => {
+    expect(fovForDistance(10)).toBe(100);
+    expect(fovForDistance(20)).toBe(70);
+    expect(fovForDistance(40)).toBe(45);
+  });
+
+  it('measures camera-to-house distance', () => {
+    expect(distanceMeters({ lat: 40, lng: -75 }, { lat: 40.0002, lng: -75 })).toBeCloseTo(22.2, 0);
   });
 });

@@ -27,7 +27,18 @@ export interface Config {
   /** Jobs waiting beyond this are rejected with 503 instead of queueing forever. */
   maxQueueLength: number;
   generationTimeoutMs: number;
-  maxRendersPerLead: number;
+  /** Designs (each = one house photo × every theme) a single lead may create, e.g. by swapping photos. */
+  maxDesignsPerLead: number;
+  /** Distance between lights described to the AI. Match it to the kit you install. */
+  lightSpacingInches: number;
+
+  twilioAccountSid: string;
+  twilioAuthToken: string;
+  twilioFrom: string;
+  twilioMessagingServiceSid: string;
+  /** e.g. smtps://user:pass@smtp.provider.com:465 */
+  smtpUrl: string;
+  emailFrom: string;
 
   adminPassword: string;
   leadWebhookUrl: string;
@@ -87,7 +98,15 @@ export function loadConfig(): Config {
     maxConcurrentGenerations: Math.max(1, int('MAX_CONCURRENT_GENERATIONS', 10)),
     maxQueueLength: int('MAX_QUEUE_LENGTH', 1000),
     generationTimeoutMs: int('GENERATION_TIMEOUT_MS', 120_000),
-    maxRendersPerLead: Math.max(1, int('MAX_RENDERS_PER_LEAD', 5)),
+    maxDesignsPerLead: Math.max(1, int('MAX_DESIGNS_PER_LEAD', 3)),
+    lightSpacingInches: Math.max(2, int('LIGHT_SPACING_INCHES', 12)),
+
+    twilioAccountSid: str('TWILIO_ACCOUNT_SID'),
+    twilioAuthToken: str('TWILIO_AUTH_TOKEN'),
+    twilioFrom: str('TWILIO_FROM_NUMBER'),
+    twilioMessagingServiceSid: str('TWILIO_MESSAGING_SERVICE_SID'),
+    smtpUrl: str('SMTP_URL'),
+    emailFrom: str('EMAIL_FROM'),
 
     adminPassword: str('ADMIN_PASSWORD'),
     leadWebhookUrl: str('LEAD_WEBHOOK_URL'),

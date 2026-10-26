@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { THEMES } from './themes.js';
 
 /** Normalises to E.164. Bare 10-digit numbers are treated as US/Canada. */
 export function normalizePhone(raw: string): string | undefined {
@@ -11,7 +10,6 @@ export function normalizePhone(raw: string): string | undefined {
   return undefined;
 }
 
-const themeIds = THEMES.map((t) => t.id) as [string, ...string[]];
 const optionalText = (max: number) =>
   z
     .string()
@@ -39,7 +37,6 @@ export const leadSchema = z.object({
     .regex(/^[A-Za-z0-9_-]*$/)
     .optional()
     .transform((v) => v || undefined),
-  theme: z.enum(themeIds).optional(),
   consent: z.literal('true', { error: 'Please agree so we can contact you about your design' }),
   // Honeypot: invisible to humans, bots fill it in.
   website: z.string().max(0, 'Invalid submission').optional(),
@@ -47,12 +44,6 @@ export const leadSchema = z.object({
   utmMedium: optionalText(100),
   utmCampaign: optionalText(100),
   referrer: optionalText(500),
-});
-
-export const renderSchema = z.object({
-  theme: z.enum(themeIds).optional(),
-  /** Re-use the photo from a previous render (an image id this lead owns). */
-  reuse: z.enum(['last']).optional(),
 });
 
 export function firstIssue(err: z.ZodError): string {

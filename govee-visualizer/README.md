@@ -42,7 +42,7 @@ The house photo goes to an AI image-editing model with an installer-style brief 
 | Provider | Setting | Notes |
 |---|---|---|
 | **Google Gemini** (recommended) | `GEMINI_API_KEY` | `gemini-2.5-flash-image` is fast and cheap. `gemini-3-pro-image-preview` is higher quality. |
-| OpenAI | `OPENAI_API_KEY` | `gpt-image-1` image edits |
+| OpenAI (ChatGPT's image model) | `OPENAI_API_KEY` + `IMAGE_PROVIDER=openai` | `gpt-image-2` by default. Slower than Gemini Flash. |
 | Mock | no key | Darkens the photo and draws dots. For trying the site and load tests for free. |
 
 To change the three looks, edit `THEMES` in `src/themes.ts`. Every theme is one more AI image per lead.

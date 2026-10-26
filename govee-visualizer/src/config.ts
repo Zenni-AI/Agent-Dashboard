@@ -96,7 +96,7 @@ export function loadConfig(): Config {
     geminiApiKey,
     geminiImageModel: str('GEMINI_IMAGE_MODEL', 'gemini-2.5-flash-image'),
     openaiApiKey,
-    openaiImageModel: str('OPENAI_IMAGE_MODEL', 'gpt-image-1'),
+    openaiImageModel: str('OPENAI_IMAGE_MODEL', 'gpt-image-2'),
     mockDelayMs: int('MOCK_DELAY_MS', 1500),
 
     maxConcurrentGenerations: Math.max(1, int('MAX_CONCURRENT_GENERATIONS', 10)),

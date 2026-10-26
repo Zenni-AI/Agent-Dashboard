@@ -1,13 +1,17 @@
 import { JobFailure } from '../queue.js';
 import { providerErrorFromResponse, type ImageProvider, type RenderRequest } from './types.js';
 
-/** OpenAI image edits (gpt-image-1). Docs: https://platform.openai.com/docs/api-reference/images/createEdit */
+/**
+ * OpenAI image edits — the image model behind ChatGPT. Needs an API key from platform.openai.com
+ * (a ChatGPT subscription does not include API access). Docs: https://platform.openai.com/docs/api-reference/images/createEdit
+ */
 export class OpenAIProvider implements ImageProvider {
   readonly name = 'openai';
 
   constructor(
     private readonly apiKey: string,
     private readonly model: string,
+    private readonly fetchFn: typeof fetch = fetch,
   ) {}
 
   async render({ image, prompt, signal }: RenderRequest): Promise<Buffer> {
@@ -16,9 +20,12 @@ export class OpenAIProvider implements ImageProvider {
     form.set('prompt', prompt);
     form.set('size', '1536x1024');
     form.set('quality', 'medium');
+    // Keep the house itself faithful to the photo instead of redrawing it. gpt-image-1 / 1.5 need this
+    // asked for explicitly; newer models do it by default, so it isn't sent to them.
+    if (/^gpt-image-1(\.5)?(-\d|$)/.test(this.model)) form.set('input_fidelity', 'high');
     form.set('image', new Blob([new Uint8Array(image)], { type: 'image/jpeg' }), 'house.jpg');
 
-    const res = await fetch('https://api.openai.com/v1/images/edits', {
+    const res = await this.fetchFn('https://api.openai.com/v1/images/edits', {
       method: 'POST',
       signal,
       headers: { authorization: `Bearer ${this.apiKey}` },

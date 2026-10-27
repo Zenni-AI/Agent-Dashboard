@@ -83,78 +83,52 @@ A life you fully control is a life you'll stop being able to see. Some portion o
 Most of the people who have that — whose routes get reversed without their consent — did not choose it and would trade it back immediately for the boredom you're trying to escape.`,
 };
 
-const DEMO_BRIEF = {
-  title: "Reverse Tuesday",
-  building: "A city bus line that runs its route backwards one day a week, unannounced.",
-  goingWith: ["One line only, not the whole network", "Unannounced — no signage", "Normal fare"],
-  ruledOut: ["Buses driving physically in reverse", "Telling riders in advance"],
-  stillOpen: ["Whether the drivers are told", "What the timetable app does with it"],
-  needToLearn: ["How GTFS feeds are structured", "How a route change gets approved locally", "Transit network topology"],
-  searchConcepts: ["GTFS specification", "bus network redesign"],
-  looksLikeSeveral: false,
-  separateIdeas: [],
-};
+/**
+ * The interview, as it really ran. Three scripted paths keyed by what the
+ * person types; anything else falls through to the generic one, so the demo
+ * never dead-ends on an idea we did not anticipate.
+ */
+const DEMO_INTERVIEWS = [
+  {
+    match: /fly|car|hover|drone/i,
+    creation: "flying-car",
+    kind: "simulation",
+    questions: [
+      { question: "How does it get off the ground — what's actually pushing it up?",
+        placeholder: "dunno, like four big drone propellers on the corners? maybe one on the roof" },
+      { question: "How many bottles, and how are they arranged under the car?",
+        placeholder: "idk like 60? in a big grid under the floor i guess" },
+      { question: "When you want to go up, what drops the Mentos in — a lever, a button, something in the dashboard?",
+        placeholder: "idk like a gumball machine thing on the roof with a string" },
+    ],
+  },
+  {
+    match: /app|alarm|phone|software|clock/i,
+    creation: "alarm-clock",
+    kind: "app",
+    questions: [
+      { question: "What does it argue about — what's its case for you staying asleep?",
+        placeholder: "that nothing good has ever happened before 9am" },
+      { question: "How do you know you've won?",
+        placeholder: "it just goes quiet. no points, no streak, nothing" },
+    ],
+  },
+  {
+    match: /.*/,
+    creation: "cereal-box",
+    kind: "design",
+    questions: [
+      { question: "What's the first thing your eye lands on?",
+        placeholder: "just a guy sitting down, honestly" },
+      { question: "And what does the back of it say?",
+        placeholder: "the nutrition facts but for feelings" },
+    ],
+  },
+];
 
-const DEMO_BOOK = `# Reverse Tuesday
-
-## What you're actually building
-One bus line that runs its stop sequence backwards, one day a week, with no announcement. Same stops, same fare, same drivers.
-
-You've ruled out the physical-reverse version and ruled out warning people. What's left is a scheduling change with a social effect.
-
-## How it actually works
-A bus route is a **directed sequence of stops** published in a GTFS feed — General Transit Feed Specification, the open format Google Maps, Transit, Citymapper and every other trip planner consume [1]. The route lives in \`routes.txt\`; the ordering lives in \`stop_times.txt\` as a \`stop_sequence\` column.
-
-Reversing a route is editing that column for one service day. **No infrastructure changes. No new vehicles.** Most agencies already run each route in both directions — what you're changing is which direction is served at which time.
-
-The hard part is entirely institutional: a schedule is a published commitment, and someone has to sign off on breaking it.
-
-## Who has done this
-No agency has done exactly this. Three neighbours:
-
-- **Bus network redesigns** — Houston rewrote its entire bus network overnight in 2015, and several cities have followed [2]. Precedent that a system-wide change *can* be executed at once.
-- **Transit as artwork** — a long tradition, though usually additive (a decorated carriage) rather than subtractive.
-- **Unplanned reversals** — diversions during roadworks reverse sequences routinely, and agencies have operational data on what happens. **That data is your best evidence and nobody has looked at it for this.**
-
-## What you need to know first
-Each depends only on the ones above it.
-
-1. **The GTFS specification** — how a feed encodes routes, trips and stop sequences. Start with the official reference, which is short and readable [1]. An afternoon.
-2. **Reading a real feed** — most agencies publish openly; TransitFeeds and Mobility Database index them by city [3]. Open yours in Python with \`gtfs-kit\`, or just a spreadsheet.
-3. **How transit networks are shaped** — why routes run where they do, and what a reversal costs riders. Jarrett Walker's *Human Transit* is the standard text and is written for non-planners [2].
-4. **How a service change gets approved where you live** — every agency has a public process, usually with a required comment period. Your local agency's board minutes are public and will tell you the real timeline.
-
-**No physical hazard here** — this is a data and policy project. The risk is to other people's time, and the mitigation is the comment period in step 4.
-
-## The numbers
-| Item | Figure |
-| --- | --- |
-| Stops on a typical urban route | 30–45 |
-| Lead time for a published schedule change | 8–12 weeks |
-| Cost of the data change itself | Effectively zero |
-| Riders affected on a mid-size urban route | 2,000–8,000 per day |
-
-That last row is the real number in this project.
-
-## What kills it
-**The trip planner.** Riders trust the app over the sign. If your reversed feed doesn't propagate, the app confidently sends people to a stop the bus reaches ninety minutes later, and the piece reads as a malfunction rather than an intervention.
-
-Test it before anything else: push a modified feed to a local OpenTripPlanner instance and see what it plans.
-
-## The first weekend
-Download your city's GTFS feed. Open \`stop_times.txt\`, pick the route you know best, reverse \`stop_sequence\` for one service day, and render the before and after on a map.
-
-**Two hours.** At the end you have an image, which is the only thing that will get you a meeting.
-
-## Still open
-You haven't decided whether the drivers are told. That's not a detail — it's the whole ethics of the piece. If they know, it's a performance with informed participants. If they don't, you've made them the instrument.
-
-Worth settling before you show anyone the map.
-
-## Sources
-1. GTFS Reference — https://gtfs.org/documentation/schedule/reference/
-2. Human Transit, Jarrett Walker — https://humantransit.org/
-3. Mobility Database — https://mobilitydatabase.org/`;
+function interviewFor(thought) {
+  return DEMO_INTERVIEWS.find((entry) => entry.match.test(thought)) ?? DEMO_INTERVIEWS.at(-1);
+}
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -208,32 +182,40 @@ window.fetch = async (input, init = {}) => {
     );
   }
 
-  if (url.includes("/api/brief")) {
-    await sleep(1400);
-    return json({ brief: DEMO_BRIEF });
+  if (url.includes("/api/interview")) {
+    const { thought, answers = [] } = JSON.parse(init.body ?? "{}");
+    const script = interviewFor(thought ?? "");
+    await sleep(900);
+    const next = script.questions[answers.length];
+    return json(
+      next
+        ? { ...next, ready: false, understanding: "", buildKind: script.kind, asked: answers.length }
+        : { ready: true, question: "", placeholder: "", understanding: "", buildKind: script.kind, asked: answers.length },
+    );
   }
 
-  if (url.match(/\/api\/textbook\/./)) {
+  if (url.includes("/api/creation/")) {
+    const name = url.split("/api/creation/")[1].split("?")[0];
+    const html = DEMO_CREATIONS[name] ?? DEMO_CREATIONS["cereal-box"];
     return sse(
       streamOf(
         [
-          { type: "start", mode: "textbook", model: "demo" },
-          { type: "status", text: "checking whether any agency has actually tried this" },
+          { type: "start", mode: "prototype", model: "demo" },
+          { type: "status", text: "working out what to draw" },
         ],
-        DEMO_BOOK,
-        {
-          lead: 2200,
-          sources: [
-            { title: "GTFS Reference — gtfs.org", url: "https://gtfs.org/" },
-            { title: "Human Transit — Jarrett Walker", url: "https://humantransit.org/" },
-            { title: "Mobility Database", url: "https://mobilitydatabase.org/" },
-          ],
-        },
+        html,
+        { lead: 1600 },
       ),
     );
   }
 
-  if (url.includes("/api/textbook")) return json({ id: `demo_${Date.now()}` }, 202);
+  if (url.includes("/api/creation")) {
+    const { thought } = JSON.parse(init.body ?? "{}");
+    await sleep(500);
+    return json({ id: interviewFor(thought ?? "").creation, creditsLeft: 2 }, 202);
+  }
+
+  if (url.includes("/api/credits")) return json({ credits: 3, known: true });
 
   return json({ error: "Not in the demo." }, 404);
 };

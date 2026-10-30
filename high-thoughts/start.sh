@@ -18,10 +18,10 @@ if [ ! -f .env ]; then
   chmod 600 .env
 fi
 
-# Books are paid for, so give this machine some credit to test with.
+# Creations are paid for, so give this machine some credit to test with.
 if [ ! -f .high-thoughts/credits.json ]; then
   echo
-  echo "Giving you 3 book credits to test with:"
+  echo "Giving you 3 creation credits to test with:"
   npm run --silent credits -- new 3 "local testing"
 fi
 

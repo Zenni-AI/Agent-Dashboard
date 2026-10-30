@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>SITUATIONS — a cereal box for adults who are sad</title>
+<style>
+  :root{
+    --ink:#f6f1e6;
+    --bg:#13131a;
+    --mustard:#E9B949;
+    --red:#ff4d3d;
+    --w:240px; --h:316px; --d:72px;
+    --fat:'Haettenschweiler','Arial Narrow Bold','Impact','Arial Black',sans-serif;
+    --hand:'Bradley Hand','Segoe Print','Comic Sans MS',cursive;
+    --body:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);overflow-x:hidden}
+  body{
+    background:
+      radial-gradient(60% 40% at 50% 22%, #22222e 0%, rgba(19,19,26,0) 70%),
+      var(--bg);
+    padding:14px 14px 26px;
+  }
+  h1{
+    font-family:var(--fat);
+    font-size:clamp(38px,13vw,62px);
+    line-height:.86;
+    letter-spacing:.02em;
+    margin:4px 0 0;
+    color:var(--mustard);
+    text-transform:uppercase;
+    transform:rotate(-1.2deg);
+    text-shadow:3px 3px 0 #00000055;
+  }
+  .sub{font-size:12.5px;line-height:1.35;opacity:.8;margin:9px 0 0;max-width:30em}
+  .sub b{color:var(--red);font-weight:700}
+
+  .stage{
+    height:calc(var(--h) + 86px);
+    display:flex;align-items:center;justify-content:center;
+    perspective:950px;
+    touch-action:none;
+    user-select:none;
+    margin-top:2px;
+  }
+  #tilt{transform-origin:50% 70%}
+  .box{
+    width:var(--w);height:var(--h);
+    position:relative;
+    transform-style:preserve-3d;
+    will-change:transform;
+  }
+  .face{position:absolute;left:0;top:0;width:var(--w);height:var(--h);overflow:hidden;backface-visibility:hidden}
+  .f-front{transform:translateZ(calc(var(--d)/2))}
+  .f-back{transform:rotateY(180deg) translateZ(calc(var(--d)/2))}
+  .f-right{width:var(--d);left:calc((var(--w) - var(--d))/2);transform:rotateY(90deg) translateZ(calc(var(--w)/2))}
+  .f-left{width:var(--d);left:calc((var(--w) - var(--d))/2);transform:rotateY(-90deg) translateZ(calc(var(--w)/2))}
+  .f-top{height:var(--d);top:calc((var(--h) - var(--d))/2);transform:rotateX(90deg) translateZ(calc(var(--h)/2))}
+  .face svg{display:block;width:100%;height:100%}
+  .side{
+    width:100%;height:100%;background:#cf992e;
+    border-left:3px solid #1b1b24;border-right:3px solid #1b1b24;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .side span{
+    writing-mode:vertical-rl;
+    font-family:var(--fat);font-size:11px;letter-spacing:.22em;
+    color:#1b1b24;text-transform:uppercase;white-space:nowrap;
+  }
+  .f-left .side span{transform:rotate(180deg)}
+  .topflap{
+    width:100%;height:100%;background:#b9821f;
+    display:flex;align-items:center;justify-content:center;
+    border-top:3px solid #1b1b24;
+    font-family:var(--fat);font-size:11px;letter-spacing:.2em;color:#1b1b24;
+  }
+
+  .bowlwrap{position:relative;margin-top:-6px}
+  canvas{display:block;width:100%;height:170px}
+  .bowllabel{
+    position:absolute;left:4px;top:8px;
+    font-family:var(--hand);font-size:13px;color:var(--red);transform:rotate(-7deg)
+  }
+
+  .punch{
+    font-family:var(--fat);
+    font-size:clamp(16px,5.2vw,24px);
+    line-height:1.12;
+    text-transform:uppercase;
+    margin:6px 0 2px;
+    border-top:3px solid var(--mustard);
+    padding-top:10px;
+  }
+  .punch b{color:var(--mustard)}
+  .punch i{color:var(--red);font-style:normal}
+
+  .controls{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px;align-items:center}
+  button{
+    font-family:var(--fat);font-size:15px;letter-spacing:.08em;text-transform:uppercase;
+    background:var(--mustard);color:#1b1b24;border:3px solid #1b1b24;
+    border-radius:14px 9px 16px 8px;
+    padding:11px 14px;cursor:pointer;
+    box-shadow:3px 3px 0 #00000066;
+    transform:rotate(-.8deg);
+  }
+  button:active{transform:translate(2px,2px) rotate(-.8deg);box-shadow:1px 1px 0 #00000066}
+  button.alt{background:var(--red);color:#fff5ef;transform:rotate(1deg)}
+  button.alt:active{transform:translate(2px,2px) rotate(1deg)}
+  .sliderbox{width:100%;margin-top:12px}
+  .sliderbox label{
+    display:block;font-family:var(--fat);font-size:14px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--ink);margin-bottom:6px
+  }
+  .sliderbox label span{color:var(--mustard)}
+  input[type=range]{
+    width:100%;-webkit-appearance:none;appearance:none;background:transparent;height:30px;margin:0
+  }
+  input[type=range]::-webkit-slider-runnable-track{height:10px;background:#2c2c3a;border:3px solid var(--ink);border-radius:8px}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:30px;height:30px;margin-top:-13px;
+    background:var(--red);border:3px solid var(--ink);border-radius:50%;cursor:pointer
+  }
+  input[type=range]::-moz-range-track{height:10px;background:#2c2c3a;border:3px solid var(--ink);border-radius:8px}
+  input[type=range]::-moz-range-thumb{width:24px;height:24px;background:var(--red);border:3px solid var(--ink);border-radius:50%;cursor:pointer}
+  .count{font-family:var(--hand);font-size:14px;color:#9fe0c5;margin-top:10px}
+  footer{margin-top:18px;font-size:10.5px;line-height:1.5;opacity:.52;max-width:34em}
+
+  /* box art animation */
+  #torso{transform-box:view-box;transform-origin:116px 250px;animation:breathe 5.2s ease-in-out infinite}
+  @keyframes breathe{
+    0%,100%{transform:translateY(0) scaleY(1)}
+    42%{transform:translateY(2px) scaleY(.982)}
+    70%{transform:translateY(.5px) scaleY(.996)}
+  }
+  .dot{animation:rise 5.2s ease-out infinite;opacity:0}
+  .dot:nth-of-type(2){animation-delay:.5s}
+  .dot:nth-of-type(3){animation-delay:1s}
+  @keyframes rise{
+    0%{opacity:0;transform:translate(0,6px) scale(.6)}
+    18%{opacity:.85}
+    70%{opacity:.5}
+    100%{opacity:0;transform:translate(7px,-30px) scale(1.1)}
+  }
+  @keyframes tilt{
+    0%{transform:none}
+    16%{transform:translateY(-8px) rotate(17deg)}
+    62%{transform:translateY(-8px) rotate(20deg)}
+    100%{transform:none}
+  }
+  .pouring{animation:tilt 2.1s cubic-bezier(.5,0,.4,1)}
+</style>
+</head>
+<body>
+
+<h1>Situations</h1>
+<p class="sub">a cereal box for adults who are sad. <b>drag it</b> to turn it round — the back has the nutrition facts but for feelings. then pour yourself some.</p>
+
+<div class="stage" id="stage">
+  <div id="tilt">
+    <div class="box" id="box">
+
+      <!-- FRONT -->
+      <div class="face f-front">
+        <svg viewBox="0 0 260 340" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <filter id="wob" x="-8%" y="-8%" width="116%" height="116%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.028" numOctaves="2" seed="7" result="n"/>
+              <feDisplacementMap in="SourceGraphic" in2="n" scale="3.2" xChannelSelector="R" yChannelSelector="G"/>
+            </filter>
+          </defs>
+          <rect width="260" height="340" fill="#E9B949"/>
+          <g filter="url(#wob)">
+            <rect x="9" y="9" width="242" height="322" rx="7" fill="none" stroke="#1b1b24" stroke-width="4.5"/>
+            <text x="130" y="63" text-anchor="middle" font-family="Haettenschweiler,'Arial Narrow Bold',Impact,'Arial Black',sans-serif"
+                  font-size="46" fill="#1b1b24" letter-spacing="1.5">SITUATIONS</text>
+            <text x="130" y="81" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="9.5"
+                  fill="#1b1b24" letter-spacing="5.5" font-weight="700">CEREAL · FOR THE MORNING</text>
+            <path d="M22 90 Q130 85 238 90" stroke="#1b1b24" stroke-width="3" fill="none" stroke-linecap="round"/>
+          </g>
+
+          <!-- NEW burst -->
+          <g transform="translate(214,110) rotate(-14)">
+            <path d="M0-21 L5-7 L20-9 L9 1 L18 13 L4 9 L0 22 L-5 9 L-18 12 L-10 1 L-20-9 L-5-8 Z" fill="#ff4d3d" stroke="#1b1b24" stroke-width="2.5"/>
+            <text x="0" y="4" text-anchor="middle" font-family="Haettenschweiler,Impact,sans-serif" font-size="12" fill="#fff5ef">NEW</text>
+          </g>
+
+          <!-- the guy -->
+          <ellipse cx="140" cy="264" rx="60" ry="7.5" fill="#1b1b24" opacity=".2"/>
+          <g stroke="#1b1b24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M48 264 Q130 259 212 264" stroke-width="5"/>
+            <path d="M116 250 L156 210 L166 255" stroke-width="15"/>
+            <path d="M166 255 L183 259" stroke-width="10"/>
+          </g>
+          <g id="torso">
+            <g stroke="#1b1b24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M116 250 C110 222 116 200 126 188" stroke-width="23"/>
+            </g>
+            <g transform="rotate(-7 133 184)">
+              <circle cx="133" cy="172" r="19.5" fill="#1b1b24"/>
+              <path d="M126 148 q8 -9 16 -1" stroke="#1b1b24" stroke-width="6" fill="none" stroke-linecap="round"/>
+              <path d="M123.5 172 q4.5 4.5 9 0" stroke="#E9B949" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+              <path d="M139 170.5 q3.5 4 7 0" stroke="#E9B949" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+              <path d="M129 185.5 q5 -3.5 10 0" stroke="#E9B949" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+            </g>
+            <path d="M126 193 C140 201 150 211 158 208" stroke="#1b1b24" stroke-width="12.5" fill="none" stroke-linecap="round"/>
+          </g>
+          <g stroke="#1b1b24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M112 252 L146 214 L156 257" stroke-width="15"/>
+            <path d="M156 257 L175 261" stroke-width="11"/>
+          </g>
+          <!-- the thinking about it -->
+          <g fill="#1b1b24">
+            <circle class="dot" cx="156" cy="146" r="3"/>
+            <circle class="dot" cx="163" cy="139" r="2.4"/>
+            <circle class="dot" cx="169" cy="133" r="1.9"/>
+          </g>
+
+          <!-- their words, in marker -->
+          <g>
+            <path d="M172 292 C160 286 140 276 124 258" stroke="#ff4d3d" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path d="M124 258 l11 3 M124 258 l2 11" stroke="#ff4d3d" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <text x="178" y="299" text-anchor="end" font-family="'Bradley Hand','Segoe Print','Comic Sans MS',cursive"
+                  font-size="13.5" fill="#ff4d3d" transform="rotate(-3 178 299)">just a guy</text>
+            <text x="196" y="315" text-anchor="end" font-family="'Bradley Hand','Segoe Print','Comic Sans MS',cursive"
+                  font-size="13.5" fill="#ff4d3d" transform="rotate(-3 196 315)">sitting down</text>
+          </g>
+          <text x="22" y="326" font-family="Helvetica,Arial,sans-serif" font-size="8" fill="#1b1b24" letter-spacing="1.6" font-weight="700">NET 630 g · ABOUT 14 BOWLS</text>
+        </svg>
+      </div>
+
+      <!-- BACK -->
+      <div class="face f-back" id="backface"></div>
+
+      <div class="face f-right"><div class="side"><span>Ingredients: oats. that's it. that's the list.</span></div></div>
+      <div class="face f-left"><div class="side"><span>Situations · Situations · Situations</span></div></div>
+      <div class="face f-top"><div class="topflap">LIFT HERE. OR DON'T.</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="bowlwrap">
+  <div class="bowllabel">the bowl ↓</div>
+  <canvas id="bowl"></canvas>
+</div>
+
+<div class="controls">
+  <button id="flip">Turn it around</button>
+  <button id="pour" class="alt">Pour some</button>
+</div>
+
+<div class="sliderbox">
+  <label for="mornings">How many mornings are left — <span id="mornval">251</span></label>
+  <input id="mornings" type="range" min="7" max="365" value="251">
+</div>
+
+<p class="punch" id="punch"></p>
+<p class="count" id="count">nothing poured yet. that's also a choice.</p>
+
+<footer>
+  guessed: a box is 630 g, holds about 14 bowls, and costs £4.20 — nobody has priced this yet. the 22 g of dread per serving is also a guess, but you already knew it was right.
+</footer>
+
+<script>
+(function(){
+  /* ---------- size the box ---------- */
+  function sizeBox(){
+    var vw = Math.min(window.innerWidth, 560);
+    var w = Math.max(170, Math.min(258, vw*0.62));
+    var h = w*1.32, d = w*0.30;
+    var r = document.documentElement.style;
+    r.setProperty('--w', w.toFixed(1)+'px');
+    r.setProperty('--h', h.toFixed(1)+'px');
+    r.setProperty('--d', d.toFixed(1)+'px');
+  }
+  sizeBox();
+
+  /* ---------- back panel: feelings facts ---------- */
+  var rows = [
+    ["DREAD","22 g","88%",0.88],
+    ["THINGS YOU SHOULD HAVE SAID","11 g","2200%",1],
+    ["LOW-GRADE NOSTALGIA","9 g","300%",1],
+    ["UNSPECIFIED SUNDAY","6 g","110%",0.92],
+    ["GUILT (NON-SPECIFIC)","4 g","160%",0.96],
+    ["HOPE","0.5 g","2%",0.045],
+    ["IRON (ACTUAL IRON)","—","8%",0.08]
+  ];
+  var s = '<svg viewBox="0 0 260 340" xmlns="http://www.w3.org/2000/svg">';
+  s += '<rect width="260" height="340" fill="#F3EADB"/>';
+  s += '<rect x="9" y="9" width="242" height="322" rx="7" fill="none" stroke="#1b1b24" stroke-width="4.5"/>';
+  s += '<text x="130" y="28" text-anchor="middle" font-family="Haettenschweiler,Impact,sans-serif" font-size="13" letter-spacing="4" fill="#1b1b24">SITUATIONS</text>';
+  s += '<text x="18" y="52" font-family="Haettenschweiler,\'Arial Black\',Impact,sans-serif" font-size="26" fill="#1b1b24">FEELINGS FACTS</text>';
+  s += '<rect x="18" y="57" width="224" height="3.5" fill="#1b1b24"/>';
+  s += '<text x="18" y="72" font-family="Helvetica,Arial,sans-serif" font-size="8.4" fill="#1b1b24">SERVING SIZE: 1 BOWL, ALONE, STANDING UP</text>';
+  s += '<text x="18" y="84" font-family="Helvetica,Arial,sans-serif" font-size="8.4" fill="#1b1b24">SERVINGS PER BOX: ABOUT 14 (IT DEPENDS)</text>';
+  s += '<rect x="18" y="90" width="224" height="8" fill="#1b1b24"/>';
+  s += '<text x="18" y="109" font-family="Helvetica,Arial,sans-serif" font-weight="700" font-size="8" fill="#1b1b24">AMOUNT PER SERVING</text>';
+  s += '<text x="242" y="109" text-anchor="end" font-family="Helvetica,Arial,sans-serif" font-weight="700" font-size="8" fill="#1b1b24">% DAILY*</text>';
+  s += '<rect x="18" y="113" width="224" height="1.6" fill="#1b1b24"/>';
+  var y = 128;
+  for(var i=0;i<rows.length;i++){
+    var r = rows[i];
+    s += '<text x="18" y="'+y+'" font-family="Helvetica,Arial,sans-serif" font-weight="700" font-size="8.6" fill="#1b1b24">'+r[0]+'  <tspan font-weight="400">'+r[1]+'</tspan></text>';
+    s += '<text x="242" y="'+y+'" text-anchor="end" font-family="Helvetica,Arial,sans-serif" font-weight="700" font-size="8.6" fill="#1b1b24">'+r[2]+'</text>';
+    s += '<rect x="18" y="'+(y+4)+'" width="224" height="5" fill="#1b1b24" opacity="0.14"/>';
+    s += '<rect class="barfill" data-w="'+(224*r[3]).toFixed(1)+'" x="18" y="'+(y+4)+'" width="0" height="5" fill="'+(i===5?'#2f9e6b':'#ff4d3d')+'"/>';
+    y += 24;
+  }
+  s += '<rect x="18" y="'+(y-10)+'" width="224" height="2.4" fill="#1b1b24"/>';
+  s += '<text x="18" y="'+(y+4)+'" font-family="Helvetica,Arial,sans-serif" font-size="7.4" fill="#1b1b24">* % DAILY VALUES ARE BASED ON A PERSON WHO IS FINE.</text>';
+  s += '<text x="18" y="'+(y+14)+'" font-family="Helvetica,Arial,sans-serif" font-size="7.4" fill="#1b1b24">YOU ARE NOT CURRENTLY THAT PERSON. THAT IS ALLOWED.</text>';
+  s += '<text x="18" y="'+(y+28)+'" font-family="\'Bradley Hand\',\'Segoe Print\',\'Comic Sans MS\',cursive" font-size="11.5" fill="#ff4d3d">contains: oats, milk, a sunday.</text>';
+  s += '</svg>';
+  document.getElementById('backface').innerHTML = s;
+  var bars = document.querySelectorAll('.barfill');
+
+  var barAnim = null;
+  function fillBars(){
+    var start = performance.now();
+    if(barAnim) cancelAnimationFrame(barAnim);
+    (function step(now){
+      var t = (now - start)/1000;
+      var done = true;
+      for(var i=0;i<bars.length;i++){
+        var target = parseFloat(bars[i].getAttribute('data-w'));
+        var p = Math.max(0, Math.min(1, (t - i*0.07)/0.55));
+        p = 1-Math.pow(1-p,3);
+        bars[i].setAttribute('width', (target*p).toFixed(1));
+        if(p<1) done = false;
+      }
+      if(!done) barAnim = requestAnimationFrame(step);
+    })(start);
+  }
+  function clearBars(){ for(var i=0;i<bars.length;i++) bars[i].setAttribute('width',0); }
+
+  /* ---------- rotation ---------- */
+  var box = document.getElementById('box'), stage = document.getElementById('stage');
+  var rotY = -18, rotX = -6, vel = 0, dragging=false, lastX=0, lastY=0, moved=0, t=0, showingBack=false;
+
+  stage.addEventListener('pointerdown', function(e){
+    dragging = true; moved = 0; lastX = e.clientX; lastY = e.clientY; vel = 0;
+    stage.setPointerCapture(e.pointerId);
+  });
+  stage.addEventListener('pointermove', function(e){
+    if(!dragging) return;
+    var dx = e.clientX - lastX, dy = e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    moved += Math.abs(dx)+Math.abs(dy);
+    rotY += dx*0.62; vel = dx*0.62;
+    rotX = Math.max(-26, Math.min(22, rotX - dy*0.2));
+  });
+  function endDrag(){ if(dragging){ dragging=false; if(moved<7) vel = 13; } }
+  stage.addEventListener('pointerup', endDrag);
+  stage.addEventListener('pointercancel', endDrag);
+
+  document.getElementById('flip').onclick = function(){ vel = 13; };
+
+  function loop(){
+    t += 1/60;
+    if(!dragging){
+      rotY += vel; vel *= 0.945;
+      if(Math.abs(vel) < 0.3){
+        var target = Math.round(rotY/180)*180;
+        rotY += (target - rotY)*0.09;
+        vel *= 0.7;
+      }
+      rotX += (-6 - rotX)*0.05;
+    }
+    var sway = Math.sin(t*0.8)*1.7;
+    box.style.transform = 'rotateX('+(rotX + Math.sin(t*0.63)*1.1).toFixed(2)+'deg) rotateY('+(rotY+sway).toFixed(2)+'deg)';
+    var back = Math.cos(rotY*Math.PI/180) < 0;
+    if(back !== showingBack){
+      showingBack = back;
+      if(back) fillBars(); else clearBars();
+    }
+    stepCereal();
+    requestAnimationFrame(loop);
+  }
+
+  /* ---------- the bowl ---------- */
+  var cv = document.getElementById('bowl'), ctx = cv.getContext('2d');
+  var CW=300, CH=170, cx=150, rimY=70, rx=110, ry=20, depth=66;
+  var BUCKETS = 26, pile = new Array(BUCKETS).fill(0);
+  var bits = [];
+  var COLORS = ['#E9B949','#ff8a3d','#f3e2c0','#d9772f'];
+
+  function sizeCanvas(){
+    var r = cv.getBoundingClientRect();
+    CW = r.width; CH = r.height;
+    var dpr = Math.min(2, window.devicePixelRatio||1);
+    cv.width = CW*dpr; cv.height = CH*dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    cx = CW/2; rx = Math.min(CW*0.40, 115); ry = rx*0.20;
+    rimY = CH*0.40; depth = rx*0.60;
+  }
+  function bucketAt(x){
+    var i = Math.floor(((x - (cx-rx))/(2*rx))*BUCKETS);
+    return Math.max(0, Math.min(BUCKETS-1, i));
+  }
+  function floorAt(x){
+    var d = (x-cx)/rx;
+    if(Math.abs(d) > 0.985) return rimY;
+    return rimY + depth*Math.sqrt(1-d*d) - 4;
+  }
+  function stepCereal(){
+    ctx.clearRect(0,0,CW,CH);
+    // bowl body
+    ctx.beginPath();
+    ctx.ellipse(cx, rimY, rx, depth, 0, 0, Math.PI);
+    ctx.closePath();
+    ctx.fillStyle = '#1c1c27'; ctx.fill();
+    ctx.lineWidth = 5; ctx.strokeStyle = '#f6f1e6'; ctx.lineCap='round'; ctx.stroke();
+    // back lip
+    ctx.beginPath(); ctx.ellipse(cx, rimY, rx, ry, 0, Math.PI, 0);
+    ctx.strokeStyle = '#8e8a80'; ctx.lineWidth = 4; ctx.stroke();
+
+    for(var i=0;i<bits.length;i++){
+      var b = bits[i];
+      if(!b.rest){
+        b.vy += 0.42; b.x += b.vx; b.y += b.vy; b.rot += b.vr;
+        if(b.y > rimY && Math.abs(b.x-cx) > rx*0.93) b.vx += (cx-b.x)*0.02;
+        var fl = floorAt(b.x) - pile[bucketAt(b.x)];
+        if(b.y >= fl){
+          b.y = fl;
+          if(b.vy > 1.3){ b.vy *= -0.26; b.vx *= 0.7; }
+          else {
+            b.rest = true; b.vy = 0;
+            var k = bucketAt(b.x);
+            pile[k] += 3.6;
+            if(k>0) pile[k-1] += 1.2;
+            if(k<BUCKETS-1) pile[k+1] += 1.2;
+          }
+        }
+      }
+      ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rot);
+      ctx.strokeStyle = b.c; ctx.lineWidth = 3;
+      if(b.k===0){ ctx.beginPath(); ctx.arc(0,0,b.r,0,6.3); ctx.stroke(); }
+      else { ctx.beginPath(); ctx.ellipse(0,0,b.r*1.2,b.r*0.7,0,0,6.3); ctx.fillStyle=b.c; ctx.fill(); }
+      ctx.restore();
+    }
+    // front lip, drawn over so it all sits inside
+    ctx.beginPath(); ctx.ellipse(cx, rimY, rx, ry, 0, 0, Math.PI);
+    ctx.strokeStyle = '#f6f1e6'; ctx.lineWidth = 5; ctx.stroke();
+  }
+
+  /* ---------- pour ---------- */
+  var served = 0, pouring = false;
+  var tilt = document.getElementById('tilt');
+  document.getElementById('pour').onclick = function(){
+    if(pouring) return;
+    pouring = true;
+    tilt.classList.add('pouring');
+    var n = 0;
+    var iv = setInterval(function(){
+      for(var i=0;i<2;i++){
+        if(bits.length > 230) bits.shift();
+        bits.push({
+          x: cx + 26 + (Math.random()*18-9),
+          y: -12 - Math.random()*20,
+          vx: (Math.random()*1.1-0.9),
+          vy: 1.4 + Math.random(),
+          r: 4 + Math.random()*1.6,
+          rot: Math.random()*6, vr: (Math.random()-0.5)*0.3,
+          c: COLORS[(Math.random()*COLORS.length)|0],
+          k: Math.random() < 0.72 ? 0 : 1,
+          rest:false
+        });
+      }
+      n++;
+      if(n > 22){
+        clearInterval(iv);
+        setTimeout(function(){ pouring = false; tilt.classList.remove('pouring'); }, 500);
+        served++;
+        var c = document.getElementById('count');
+        var g = (served*22);
+        c.textContent = served === 1
+          ? 'one bowl poured. that is 22 g of dread, consumed standing up.'
+          : served + ' bowls poured. ' + (g>=1000 ? (g/1000).toFixed(2)+' kg' : g + ' g') + ' of dread before you sat down.';
+      }
+    }, 48);
+  };
+
+  /* ---------- the punchline ---------- */
+  var slider = document.getElementById('mornings');
+  function punch(){
+    var m = +slider.value;
+    document.getElementById('mornval').textContent = m;
+    var boxes = Math.ceil(m/14);
+    var cost = boxes*4.20;
+    var dread = m*22/1000;
+    document.getElementById('punch').innerHTML =
+      '<b>'+m+'</b> mornings = <b>'+boxes+'</b> boxes = <b>£'+cost.toFixed(2)+'</b> and <b>'+dread.toFixed(1)+' kg</b> of dread. '+
+      '<i>the recommended daily amount is none.</i>';
+  }
+  slider.addEventListener('input', punch);
+  punch();
+
+  window.addEventListener('resize', function(){ sizeBox(); sizeCanvas(); });
+  sizeCanvas();
+  loop();
+})();
+</script>
+</body>
+</html>

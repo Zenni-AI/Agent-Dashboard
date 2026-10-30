@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ARGUE CLOCK</title>
+<style>
+  :root{
+    --bg:#12100f; --ink:#fff6e5; --yel:#ffd93d; --pink:#ff4d6d; --cy:#35e0d0; --pur:#9b7bff;
+    --k:3; /* shake amount */
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font-family:"Avenir Next","Helvetica Neue",Helvetica,Arial,sans-serif;}
+  body{min-height:100svh;padding:14px 14px 30px;max-width:560px;margin:0 auto;overflow-x:hidden}
+  h1{font-size:clamp(34px,11vw,56px);line-height:.86;margin:4px 0 6px;font-weight:900;letter-spacing:-.02em;
+     text-transform:uppercase;transform:rotate(-1.4deg)}
+  h1 .a{color:var(--yel)} h1 .b{color:var(--pink)}
+  .sub{font-size:14px;line-height:1.25;opacity:.85;margin:0 0 10px;transform:rotate(.5deg);max-width:34em}
+  .sub b{color:var(--cy)}
+  .stage{position:relative;margin:2px 0 6px}
+  .bubble{
+    position:relative;border:4px solid var(--ink);background:#1d1a18;color:var(--ink);
+    padding:13px 14px 15px;font-weight:800;font-size:clamp(17px,5vw,22px);line-height:1.1;text-transform:uppercase;
+    border-radius:26px 34px 22px 30px/30px 22px 34px 26px;transform:rotate(-1deg);
+    min-height:86px;display:flex;align-items:center;
+  }
+  .bubble.pop{animation:pop .3s cubic-bezier(.2,1.7,.5,1)}
+  @keyframes pop{0%{transform:rotate(-1deg) scale(.7)}100%{transform:rotate(-1deg) scale(1)}}
+  .bubble .tail{position:absolute;bottom:-22px;left:46px;width:0;height:0;
+    border-left:16px solid transparent;border-right:26px solid transparent;border-top:24px solid var(--ink)}
+  .bubble .tail i{position:absolute;top:-27px;left:-11px;width:0;height:0;
+    border-left:11px solid transparent;border-right:18px solid transparent;border-top:17px solid #1d1a18}
+  .quiet .bubble{opacity:.55;border-color:#5a5450;color:#8d8580;font-size:19px}
+  svg{display:block;width:100%;height:auto;max-height:46svh;overflow:visible}
+  .clockwrap{transform-origin:50% 88%;animation:shake .11s infinite alternate ease-in-out}
+  @keyframes shake{from{transform:rotate(calc(-1deg*var(--k))) translateY(calc(-1px*var(--k)))}
+                   to{transform:rotate(calc(1deg*var(--k)))}}
+  .bellL{transform-origin:112px 104px;animation:bl .1s infinite alternate}
+  .bellR{transform-origin:228px 104px;animation:bl .1s infinite alternate-reverse}
+  @keyframes bl{from{transform:rotate(calc(-5deg*var(--k)))}to{transform:rotate(calc(5deg*var(--k)))}}
+  .dead .clockwrap,.dead .bellL,.dead .bellR{animation:none!important}
+  .dead .clockwrap{transform:rotate(3deg) translateY(10px)}
+  .dead .bellL{transform:rotate(-26deg)} .dead .bellR{transform:rotate(26deg)}
+  .wave{opacity:0;animation:wv .55s infinite}
+  @keyframes wv{0%{opacity:0}30%{opacity:.95}100%{opacity:0}}
+  .dead .wave{display:none}
+  .you{font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--cy);
+       min-height:34px;margin:12px 2px 4px;line-height:1.15}
+  .you span{opacity:.55;color:var(--ink)}
+  button{font-family:inherit;font-weight:900;text-transform:uppercase;cursor:pointer;border:0}
+  .opt{display:block;width:100%;text-align:left;background:var(--ink);color:#12100f;
+    border:3px solid #000;border-radius:16px 22px 14px 20px/20px 14px 22px 16px;
+    padding:12px 13px;font-size:clamp(14px,4.2vw,17px);line-height:1.08;margin:8px 0;
+    box-shadow:4px 5px 0 var(--pur);transition:transform .07s,box-shadow .07s}
+  .opt:nth-child(2){transform:rotate(.7deg);box-shadow:4px 5px 0 var(--pink)}
+  .opt:nth-child(3){transform:rotate(-.6deg);box-shadow:4px 5px 0 var(--cy)}
+  .opt:active{transform:translate(4px,5px) rotate(0);box-shadow:0 0 0}
+  .opt[disabled]{opacity:.35}
+  .typerow{display:flex;gap:7px;margin-top:12px}
+  input{flex:1;min-width:0;background:#1d1a18;border:3px dashed #6b645e;color:var(--ink);
+    padding:12px;border-radius:14px;font-family:inherit;font-weight:700;font-size:16px}
+  input::placeholder{color:#766e68;text-transform:uppercase;font-size:13px}
+  input:focus{outline:none;border-color:var(--yel)}
+  .send{background:var(--yel);color:#12100f;border-radius:14px;padding:0 16px;font-size:15px;border:3px solid #000}
+  .send:active{transform:translateY(3px)}
+  .snooze{display:block;width:100%;margin:14px 0 0;background:none;color:#8d8580;border:0;
+    font-size:12px;font-weight:800;letter-spacing:.08em;text-decoration:underline;padding:6px}
+  .end{border:4px dashed var(--yel);border-radius:20px;padding:14px;margin-top:12px;transform:rotate(-.7deg)}
+  .end h2{margin:0 0 8px;font-size:clamp(20px,6.4vw,28px);line-height:.95;color:var(--yel);text-transform:uppercase}
+  .end p{margin:0 0 10px;font-size:15px;line-height:1.25;font-weight:700}
+  .end .big{color:var(--pink);font-size:clamp(17px,5.4vw,23px);line-height:1.05;text-transform:uppercase}
+  .again{width:100%;background:var(--pink);color:#12100f;border:3px solid #000;border-radius:16px;
+    padding:14px;font-size:17px;box-shadow:4px 5px 0 var(--ink)}
+  .again:active{transform:translate(4px,5px);box-shadow:0 0 0}
+  .meta{display:flex;justify-content:space-between;align-items:baseline;margin:2px 2px 0;
+    font-size:12px;font-weight:800;letter-spacing:.06em;color:#8d8580;text-transform:uppercase}
+  .clk{font-variant-numeric:tabular-nums;color:var(--yel);font-size:16px}
+  footer{margin-top:22px;font-size:11px;line-height:1.5;color:#7c746e;border-top:2px solid #2b2724;padding-top:10px}
+  .hide{display:none!important}
+</style>
+</head>
+<body>
+
+<h1><span class="a">ARGUE</span><br><span class="b">CLOCK</span></h1>
+<p class="sub">It rings, and it <b>defends why you should stay asleep</b>. You have to out-argue it. There's no score — it just gives up and goes quiet.</p>
+
+<div class="stage" id="stage">
+  <div class="bubble pop" id="bubble">WAKE UP. ACTUALLY — DON'T.<span class="tail"><i></i></span></div>
+
+  <svg viewBox="0 0 340 300" id="svg" aria-label="an alarm clock, shouting">
+    <g class="clockwrap" id="cw">
+      <!-- sound waves -->
+      <g stroke="var(--yel)" stroke-width="5" fill="none" stroke-linecap="round">
+        <path class="wave" style="animation-delay:0s"   d="M38 150 q-14 -16 -14 -34"/>
+        <path class="wave" style="animation-delay:.1s"  d="M22 168 q-22 -26 -22 -56"/>
+        <path class="wave" style="animation-delay:0s"   d="M302 150 q14 -16 14 -34"/>
+        <path class="wave" style="animation-delay:.1s"  d="M318 168 q22 -26 22 -56"/>
+      </g>
+      <!-- legs -->
+      <g stroke="var(--ink)" stroke-width="7" stroke-linecap="round">
+        <path d="M112 244 L92 282"/><path d="M228 244 L248 282"/>
+        <path d="M80 284 L104 280"/><path d="M260 284 L236 280"/>
+      </g>
+      <!-- bells -->
+      <g class="bellL"><path id="bLa" fill="var(--pink)" stroke="var(--ink)" stroke-width="6"/></g>
+      <g class="bellR"><path id="bRa" fill="var(--pink)" stroke="var(--ink)" stroke-width="6"/></g>
+      <path d="M118 96 q52 -30 104 0" stroke="var(--ink)" stroke-width="7" fill="none" stroke-linecap="round"/>
+      <circle cx="170" cy="74" r="10" fill="var(--yel)" stroke="var(--ink)" stroke-width="5"/>
+      <!-- body -->
+      <path id="body1" fill="#1d1a18" stroke="var(--ink)" stroke-width="7"/>
+      <path id="body2" fill="none" stroke="var(--yel)" stroke-width="3" opacity=".75"/>
+      <!-- hands -->
+      <g stroke="var(--cy)" stroke-width="7" stroke-linecap="round">
+        <path id="hh" d="M170 170 L170 128"/><path id="mh" d="M170 170 L200 150"/>
+      </g>
+      <circle cx="170" cy="170" r="6" fill="var(--yel)"/>
+      <!-- face -->
+      <g id="face">
+        <g id="eyesOpen">
+          <circle cx="140" cy="146" r="14" fill="var(--ink)"/><circle cx="202" cy="146" r="14" fill="var(--ink)"/>
+          <circle id="pL" cx="140" cy="146" r="6" fill="#12100f"/><circle id="pR" cx="202" cy="146" r="6" fill="#12100f"/>
+        </g>
+        <g id="eyesShut" class="hide" stroke="var(--ink)" stroke-width="6" fill="none" stroke-linecap="round">
+          <path d="M128 148 q12 10 24 0"/><path d="M190 148 q12 10 24 0"/>
+        </g>
+        <path id="mouth" d="M136 204 q34 24 68 0 q-34 -10 -68 0" fill="var(--pink)" stroke="var(--ink)" stroke-width="5" stroke-linejoin="round"/>
+      </g>
+    </g>
+  </svg>
+
+  <div class="meta"><span id="lab">IT IS SHOUTING</span><span class="clk" id="clk">06:40:00</span></div>
+</div>
+
+<div id="play">
+  <div class="you" id="yourline"><span>your move.</span></div>
+  <div id="opts"></div>
+  <form class="typerow" id="form" autocomplete="off">
+    <input id="inp" placeholder="or type your own comeback" maxlength="90">
+    <button class="send" type="submit">SAY IT</button>
+  </form>
+  <button class="snooze" id="snz">…fine. snooze. you win. (9 min)</button>
+</div>
+
+<div id="over" class="hide"></div>
+
+<footer id="foot">
+  I assumed your alarm is set for 06:40 and that the dog is, in fact, still asleep. Comeback strength is judged by a list of about forty words I wrote in one go, so "bladder" beats "deadline". Snooze button press time taken as 0.4 seconds.
+</footer>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+const bubble=$('#bubble'),optsEl=$('#opts'),yourline=$('#yourline'),stage=$('#stage'),lab=$('#lab');
+
+/* ---------- hand-drawn wobble ---------- */
+function rng(s){return function(){s|=0;s=s+0x6D2B79F5|0;var t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function wob(cx,cy,r,amp,n,seed){let R=rng(seed),p='';for(let i=0;i<n;i++){const a=i/n*Math.PI*2,rr=r+(R()-.5)*amp,x=cx+Math.cos(a)*rr,y=cy+Math.sin(a)*rr;p+=(i?'L':'M')+x.toFixed(1)+' '+y.toFixed(1)}return p+'Z'}
+$('#body1').setAttribute('d',wob(170,170,86,7,30,7));
+$('#body2').setAttribute('d',wob(170,170,72,6,26,19));
+$('#bLa').setAttribute('d',wob(112,76,32,5,18,3));
+$('#bRa').setAttribute('d',wob(228,76,32,5,18,11));
+
+/* ---------- eyes follow finger ---------- */
+const svg=$('#svg'),pL=$('#pL'),pR=$('#pR');
+function look(e){const r=svg.getBoundingClientRect();const x=((e.touches?e.touches[0].clientX:e.clientX)-r.left)/r.width*340;const y=((e.touches?e.touches[0].clientY:e.clientY)-r.top)/r.height*300;
+ [[pL,140],[pR,202]].forEach(([p,cx])=>{let dx=x-cx,dy=y-146,d=Math.hypot(dx,dy)||1,m=Math.min(6,d);p.setAttribute('cx',cx+dx/d*m);p.setAttribute('cy',146+dy/d*m)})}
+addEventListener('pointermove',look,{passive:true});
+addEventListener('touchmove',look,{passive:true});
+
+/* ---------- clock time ---------- */
+let start=Date.now(),alive=true,frozen=null;
+function elapsed(){return ((frozen??Date.now())-start)/1000}
+function tick(){
+  const t=6*3600+40*60+elapsed();
+  const h=Math.floor(t/3600)%24,m=Math.floor(t/60)%60,s=Math.floor(t%60);
+  $('#clk').textContent=[h,m,s].map(v=>String(Math.floor(v)).padStart(2,'0')).join(':');
+  const ma=(m+s/60)/60*360, ha=((h%12)+m/60)/12*360;
+  $('#mh').setAttribute('d',`M170 170 L${170+Math.sin(ma*Math.PI/180)*56} ${170-Math.cos(ma*Math.PI/180)*56}`);
+  $('#hh').setAttribute('d',`M170 170 L${170+Math.sin(ha*Math.PI/180)*38} ${170-Math.cos(ha*Math.PI/180)*38}`);
+  requestAnimationFrame(tick);
+}tick();
+
+/* ---------- its arguments ---------- */
+const ARGS=[
+ {t:"IT IS COLD OUT THERE AND WARM IN HERE. THIS IS JUST PHYSICS. I'M A CLOCK, I KNOW PHYSICS.",
+  c:[[2,"THE HEATING COMES ON AT SEVEN. I CHECKED THE APP."],[1,"I'll put a jumper on."],[0,"...is it though?"]]},
+ {t:"YOU WERE HAVING A GOOD DREAM. I SAW THE WHOLE THING. IT WAS GOING SOMEWHERE.",
+  c:[[2,"IT WAS A DREAM ABOUT BEING LATE. YOU PUT IT THERE."],[1,"I can have it again tonight."],[0,"what happened in it?"]]},
+ {t:"NOBODY WILL NOTICE IF YOU'RE TWENTY MINUTES LATE. NOBODY HAS EVER NOTICED ANYTHING.",
+  c:[[2,"THEY NOTICED LAST TUESDAY. THEY MADE A JOKE ABOUT IT IN THE GROUP CHAT."],[1,"I'd notice."],[0,"yeah probably"]]},
+ {t:"SLEEP IS WHEN THE BRAIN WASHES ITSELF. YOU ARE, RIGHT NOW, FILTHY.",
+  c:[[2,"IT'S HAD EIGHT HOURS. IT'S CLEAN. IT'S GLEAMING. LET ME UP."],[1,"I'll nap later."],[0,"gross."]]},
+ {t:"IT IS STILL DARK OUTSIDE. DARK MEANS NIGHT. NIGHT MEANS BED. I DON'T MAKE THE RULES.",
+  c:[[2,"IT'S FEBRUARY. IT'S DARK UNTIL EIGHT. THAT'S YOUR WHOLE ARGUMENT GONE."],[1,"The lamp's on, look."],[0,"true, it is dark"]]},
+ {t:"WHAT ARE YOU EVEN GETTING UP FOR. BE HONEST WITH ME. BE HONEST WITH THE CLOCK.",
+  c:[[2,"COFFEE. ALONE. BEFORE ANYONE ELSE IS AWAKE. THAT'S MINE AND YOU'RE EATING IT."],[1,"Stuff. Things. You know."],[0,"...dunno really"]]},
+ {t:"YOU'VE ALREADY MOVED. THE WARM SPOT IS GONE. YOU MAY AS WELL MAKE A NEW ONE AND STAY A BIT.",
+  c:[[2,"THAT'S AN ARGUMENT FOR GETTING UP AND YOU KNOW IT."],[1,"There's a warm spot over there."],[0,"ohh the warm spot"]]},
+ {t:"NINE MORE MINUTES IS NOTHING. NINE MINUTES IS A SONG AND A HALF. BE REASONABLE.",
+  c:[[2,"IT'S NEVER NINE. IT'S FOUR LOTS OF NINE AND THEN A PANIC."],[1,"Fine, but only nine."],[0,"okay nine"]]},
+ {t:"EVERYONE ELSE IS ALSO IN BED RIGHT NOW. YOU'D BE GETTING UP ALONE. INTO AN EMPTY WORLD.",
+  c:[[2,"THE BUS DRIVER'S UP. THE BAKERY'S UP. YOU'RE LYING TO ME."],[1,"I like it empty."],[0,"that's sad actually"]]}
+];
+const KEY=[
+ {k:['toilet','piss','wee','pee','bladder','loo'],s:2,r:"...ugh. FINE. THAT ONE I CANNOT ARGUE WITH. GO. BUT COME STRAIGHT BACK, I MEAN IT."},
+ {k:['dog','cat','walk him','puppy'],s:2,r:"THE DOG IS ALSO ASLEEP. LOOK AT HIM. ...okay he's at the door doing the little dance. fine."},
+ {k:['flight','plane','airport','train','gate'],s:2,r:"WHAT TIME IS THE— oh. OH. okay. okay that's a real thing, that's a genuinely real thing."},
+ {k:['exam','interview','test','driving'],s:2,r:"YOU'LL PERFORM BETTER ON SLEEP. ...you haven't revised, have you. that's a different problem."},
+ {k:['kid','kids','school','baby','children','nursery'],s:2,r:"AH YES. THE CHILDREN. THE FAMOUS CHILDREN. I HAVE NO COUNTER TO THE CHILDREN."},
+ {k:['boss','fired','sacked','deadline','meeting','work','job','shift'],s:1,r:"THEY CANNOT FIRE YOU IF THEY CANNOT REACH YOU. ...that's not how it works. I know. I'm just tired."},
+ {k:['coffee','tea','breakfast','toast'],s:1,r:"I'D BRING IT TO YOU IF I COULD. I CAN'T. I HAVE NO ARMS. ONLY OPINIONS AND A BELL."},
+ {k:['money','rent','pay','bills','invoice'],s:1,r:"MONEY IS A SHARED FICTION. ...SO IS MORNING, ADMITTEDLY. MOVING ON."},
+ {k:['gym','run','running','exercise','swim'],s:0,r:"HA! HAHA. YOU ARE NOT GOING TO THE GYM. WE BOTH KNOW THIS. LOUDER NOW."},
+ {k:['shut up','shutup','stop','be quiet','off'],s:0,r:"'SHUT UP' IS NOT A REBUTTAL. IT IS A NOISE. I AM A NOISE EXPERT. LOUDER."},
+ {k:['please','pls'],s:0,r:"BEGGING. LOVELY. DELICIOUS. ABSOLUTELY LOUDER."},
+ {k:['sorry'],s:0,r:"DON'T APOLOGISE TO FURNITURE. IT ONLY ENCOURAGES US."},
+ {k:['love you','i love you','good clock'],s:1,r:"...don't. ...that's not fair. that's not— I'm still ringing, but quieter. obviously."},
+ {k:['bin','rubbish','recycling','parcel','delivery'],s:2,r:"THE BIN MEN. THE ONE FORCE OLDER THAN ME. I YIELD SOME GROUND."},
+ {k:['hungry','starving','food'],s:1,r:"YOU ATE AT ELEVEN. I WATCHED. I WATCH EVERYTHING."}
+];
+const WEAK=["THAT WASN'T AN ARGUMENT. THAT WAS A SOUND YOUR MOUTH MADE.","I'M SORRY, WHAT? NO, DON'T REPEAT IT. STAY DOWN.","WEAK. RINGING AT FULL VOLUME NOW. THAT'S ON YOU.","YOU'VE GIVEN ME NOTHING AND I'VE GIVEN YOU EVERYTHING."];
+const MID=["HALF A POINT. HALF. I'M STAYING EXACTLY WHERE I AM.","MM. NEARLY. NEARLY ISN'T VERTICAL THOUGH, IS IT.","I'VE HEARD WORSE. I'VE ALSO HEARD BETTER. KEEP GOING."];
+const STRONG=["...okay that's annoyingly fair.","HM. I DON'T LIKE THAT. I DON'T LIKE THAT AT ALL.","...fine. FINE. that one landed.","hm. hm. moving on QUICKLY—"];
+
+/* ---------- state ---------- */
+let resolve=100,round=0,pool=[],cur=null,busy=false,rage=1;
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function setRage(){
+  const v=Math.max(0,Math.min(100,resolve))/100;
+  document.documentElement.style.setProperty('--k',(0.4+v*3.4).toFixed(2));
+  document.querySelectorAll('.clockwrap').forEach(e=>e.style.animationDuration=(0.22-v*0.12)+'s');
+  document.querySelectorAll('.bellL,.bellR').forEach(e=>e.style.animationDuration=(0.2-v*0.11)+'s');
+  document.querySelectorAll('.wave').forEach((e,i)=>{e.style.opacity='';e.style.display=(v>0.62||i%2===0)?'':'none';e.style.animationDuration=(0.9-v*0.5)+'s'});
+  bubble.style.fontSize='clamp('+(13+v*6).toFixed(0)+'px,'+(3.6+v*1.8).toFixed(1)+'vw,'+(16+v*8).toFixed(0)+'px)';
+  $('#mouth').setAttribute('d', v>0.66?"M132 200 q38 32 76 0 q-38 -12 -76 0" : v>0.33?"M138 206 q32 18 64 0 q-32 -8 -64 0":"M142 210 q28 6 56 0 q-28 -4 -56 0");
+  lab.textContent = v>0.75?"IT IS SHOUTING" : v>0.45?"IT IS STILL GOING" : v>0.15?"IT IS GETTING QUIETER" : "IT IS BARELY RINGING";
+}
+function say(t){bubble.classList.remove('pop');void bubble.offsetWidth;bubble.classList.add('pop');bubble.innerHTML=t+'<span class="tail"><i></i></span>'}
+function nextArg(){
+  if(!pool.length)pool=shuffle(ARGS.slice());
+  cur=pool.pop();round++;
+  say(cur.t);
+  optsEl.innerHTML='';
+  shuffle(cur.c.slice()).forEach(([s,txt])=>{
+    const b=document.createElement('button');b.className='opt';b.textContent=txt;
+    b.onclick=()=>answer(s,txt);optsEl.appendChild(b);
+  });
+  busy=false;
+}
+function lockOpts(){document.querySelectorAll('.opt').forEach(b=>b.disabled=true)}
+function judge(txt){
+  const l=txt.toLowerCase();
+  for(const e of KEY) for(const k of e.k) if(l.includes(k)) return [e.s,e.r];
+  if(l.trim().length>=26) return [2,null];
+  if(l.trim().length>=13) return [1,null];
+  return [0,null];
+}
+function answer(s,txt,custom){
+  if(busy||!alive)return; busy=true; lockOpts();
+  yourline.textContent='YOU: "'+txt+'"';
+  let reply=null;
+  if(custom){const j=judge(txt);s=j[0];reply=j[1]}
+  resolve += s===2?-(26+Math.random()*10) : s===1?-(12+Math.random()*6) : +(9+Math.random()*5);
+  resolve=Math.min(100,resolve);
+  setTimeout(()=>{
+    if(resolve<=0 && round>=3){ return giveUp(); }
+    if(resolve<=0) resolve=9;
+    setRage();
+    say(reply || (s===2?STRONG:s===1?MID:WEAK)[Math.floor(Math.random()*(s===2?STRONG:s===1?MID:WEAK).length)]);
+    setTimeout(()=>{ if(alive) nextArg(); },1250);
+  },520);
+}
+$('#form').onsubmit=e=>{e.preventDefault();const v=$('#inp').value.trim();if(!v||busy||!alive)return;$('#inp').value='';$('#inp').blur();answer(0,v,true)};
+
+/* ---------- it gives up ---------- */
+function giveUp(){
+  alive=false;frozen=Date.now();
+  optsEl.innerHTML='';$('#form').classList.add('hide');$('#snz').classList.add('hide');
+  resolve=0;setRage();
+  const seq=[["...",400],["hm.",1100],["fine.",1900],["",2700]];
+  seq.forEach(([t,d])=>setTimeout(()=>say(t||"&nbsp;"),d));
+  setTimeout(()=>{
+    stage.classList.add('dead');stage.classList.add('quiet');
+    $('#eyesOpen').classList.add('hide');$('#eyesShut').classList.remove('hide');
+    lab.textContent="IT HAS GONE QUIET";
+  },2500);
+  setTimeout(showEnd,3400);
+}
+function showEnd(){
+  const e=elapsed(),mm=Math.floor(e/60),ss=Math.round(e%60);
+  const t=(mm?mm+"M ":"")+ss+"S";
+  const ratio=Math.round(e/0.4);
+  const yearly=Math.round(e*5*48/60); // weekdays, 48 weeks, minutes
+  const ov=$('#over');ov.classList.remove('hide');$('#play').classList.add('hide');
+  ov.innerHTML=`
+   <div class="end">
+     <h2>it went quiet.<br>no score. you just won.</h2>
+     <p class="big">you argued for ${t} to avoid a button that takes 0.4 seconds. that is ${ratio.toLocaleString()}× longer.</p>
+     <p>You won ${round} arguments before breakfast. Statistically this is the peak of your day.</p>
+     <p>Keep this up every weekday and you'll spend <b style="color:var(--cy)">${yearly.toLocaleString()} minutes a year</b> debating a clock — roughly ${(yearly/60).toFixed(1)} hours, which is, and I'm guessing here, about ${(yearly/60/8).toFixed(1)} working days of pure shouting at furniture.</p>
+     <p class="big" style="color:var(--yel)">you are now ${t} late and completely, permanently awake. it got what it wanted.</p>
+     <button class="again" id="ag">SET IT AGAIN FOR TOMORROW</button>
+   </div>`;
+  $('#ag').onclick=reset;
+}
+/* ---------- you snooze: it wins ---------- */
+$('#snz').onclick=()=>{
+  if(busy||!alive)return;busy=true;alive=false;frozen=Date.now();lockOpts();
+  resolve=100;setRage();
+  say("HA. SEE YOU AT 06:49. I'LL BE LOUDER. I'VE BEEN PRACTISING.");
+  lab.textContent="IT WON";
+  const ov=$('#over');ov.classList.remove('hide');$('#play').classList.add('hide');
+  const e=elapsed();
+  ov.innerHTML=`<div class="end">
+    <h2>it won.</h2>
+    <p class="big">nine minutes of sleep, bought for ${Math.round(e)} seconds of arguing and a lifetime of knowing you folded to a clock.</p>
+    <p>Sleep scientists (I'm paraphrasing from memory) reckon those nine minutes are worth approximately nothing. The clock knows this. The clock has always known this.</p>
+    <button class="again" id="ag">NO. FIGHT IT. (louder this time)</button></div>`;
+  $('#ag').onclick=()=>reset(true);
+};
+function reset(louder){
+  alive=true;busy=false;frozen=null;start=Date.now();resolve=louder?112:100;round=0;pool=[];
+  stage.classList.remove('dead','quiet');
+  $('#eyesOpen').classList.remove('hide');$('#eyesShut').classList.add('hide');
+  $('#over').classList.add('hide');$('#play').classList.remove('hide');$('#form').classList.remove('hide');$('#snz').classList.remove('hide');
+  yourline.innerHTML='<span>your move.</span>';
+  setRage();nextArg();
+}
+setRage();setTimeout(nextArg,700);
+})();
+</script>
+</body>
+</html>

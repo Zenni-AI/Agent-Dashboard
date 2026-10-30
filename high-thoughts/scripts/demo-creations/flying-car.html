@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>FLYING CAR</title>
+<style>
+  :root{
+    --ink:#fff6e5; --red:#ff2a3c; --yel:#ffd23f; --cyan:#3ff0e0; --bg:#0d0b14; --pink:#ff78c4;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font-family:"Comic Sans MS","Chalkboard SE","Marker Felt",system-ui,sans-serif;}
+  body{padding:14px 12px 30px;max-width:620px;margin:0 auto;overflow-x:hidden}
+  h1{font-size:clamp(34px,13vw,62px);line-height:.88;margin:0 0 2px;color:var(--yel);
+    letter-spacing:-1px;transform:rotate(-1.6deg);text-shadow:4px 4px 0 var(--red);}
+  .sub{margin:10px 2px 10px;font-size:14px;color:var(--cyan);transform:rotate(.5deg)}
+  .stage{position:relative;border:3px solid #2b2540;border-radius:16px;background:#120f1c;
+    padding:4px;overflow:hidden}
+  .stage.shake{animation:sh .09s infinite}
+  @keyframes sh{0%{transform:translate(0,0)}25%{transform:translate(-2px,1px)}
+    50%{transform:translate(2px,-1px)}75%{transform:translate(-1px,-2px)}100%{transform:translate(1px,2px)}}
+  svg{display:block;width:100%;height:auto;max-height:62vh}
+  .verdict{margin:12px 2px 6px;font-size:clamp(15px,4.6vw,20px);line-height:1.25;color:var(--red);
+    min-height:3.2em;transform:rotate(-.6deg)}
+  .verdict b{color:var(--yel)}
+  .controls{margin-top:6px;display:flex;flex-direction:column;gap:12px}
+  .ctl{background:#171329;border:2px dashed #39305c;border-radius:14px;padding:10px 12px}
+  .lab{font-size:13px;color:var(--cyan);letter-spacing:1px;margin-bottom:6px}
+  .lab span{color:var(--ink)}
+  input[type=range]{-webkit-appearance:none;width:100%;background:transparent;margin:4px 0}
+  input[type=range]::-webkit-slider-runnable-track{height:12px;background:#2b2347;border-radius:9px;border:2px solid #4a3f78}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:34px;height:34px;margin-top:-13px;
+    border-radius:50%;background:var(--red);border:3px solid var(--ink);box-shadow:0 3px 0 #7a0010}
+  input[type=range]::-moz-range-track{height:12px;background:#2b2347;border-radius:9px;border:2px solid #4a3f78}
+  input[type=range]::-moz-range-thumb{width:30px;height:30px;border-radius:50%;background:var(--red);border:3px solid var(--ink)}
+  .mini{font-size:12px;color:#9c8fd0;margin-top:6px}
+  button#fire{width:100%;padding:18px 10px;font-size:22px;font-family:inherit;color:#fff;
+    background:var(--red);border:3px solid var(--ink);border-radius:16px;box-shadow:0 6px 0 #7a0010;
+    transform:rotate(-.7deg);letter-spacing:1px}
+  button#fire:active{transform:translateY(5px) rotate(-.7deg);box-shadow:0 1px 0 #7a0010}
+  button#fire:disabled{background:#4a3f78;box-shadow:0 6px 0 #241e3d;color:#9c8fd0}
+  .switch{display:flex;align-items:center;gap:12px;cursor:pointer}
+  .knob{flex:0 0 auto;width:62px;height:34px;border-radius:20px;background:#2b2347;border:3px solid #4a3f78;position:relative;transition:.15s}
+  .knob i{position:absolute;top:2px;left:2px;width:24px;height:24px;border-radius:50%;background:var(--ink);transition:.15s}
+  .switch.on .knob{background:var(--pink);border-color:var(--ink)}
+  .switch.on .knob i{left:32px;background:#120f1c}
+  .switch p{margin:0;font-size:13.5px;line-height:1.2;color:var(--yel)}
+  .note{font-size:12px;line-height:1.45;color:#7f73ad;margin:18px 2px 0;border-top:2px dotted #2f2850;padding-top:10px}
+  .credit{font-size:12.5px;color:var(--pink);margin:10px 2px 0;line-height:1.4}
+</style>
+</head>
+<body>
+
+<h1>FLYING CAR</h1>
+<div class="sub">a honda civic sat on coca cola. drop the mentos and see.</div>
+
+<div class="stage" id="stage">
+<svg id="scene" viewBox="0 0 520 580" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <linearGradient id="skyg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b1430"/><stop offset="1" stop-color="#120f1c"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="520" height="580" fill="url(#skyg)"/>
+
+  <!-- WORLD (scrolls down when the car goes up) -->
+  <g id="world">
+    <g stroke="#3a3160" stroke-width="3" fill="none" stroke-linecap="round">
+      <path d="M-120 -180 h60 M-60 -192 v24 M-60 -180 h26" transform="translate(420,0)"/>
+    </g>
+    <text x="300" y="-150" font-size="12" fill="#6d60a8" text-anchor="middle">A SATELLITE (OPTIMISTIC)</text>
+
+    <g fill="none" stroke="#5a4e92" stroke-width="4" stroke-linecap="round">
+      <path d="M90 250 q10 -16 26 -10 q8 -16 26 -8 q18 -4 20 12 q14 2 10 12 h-92 q-8 -4 10 -6"/>
+      <path d="M400 150 q9 -14 24 -9 q7 -14 24 -7 q16 -3 18 11 q12 2 9 11 h-84 q-7 -4 9 -6"/>
+    </g>
+    <text x="104" y="282" font-size="12" fill="#6d60a8">A CLOUD</text>
+
+    <g id="bird" fill="none" stroke="#8d7fd4" stroke-width="3.5" stroke-linecap="round">
+      <path d="M120 92 q12 -12 22 0 q12 -12 22 0"/>
+    </g>
+    <text x="142" y="76" font-size="12" fill="#6d60a8" text-anchor="middle">PIGEON, SHOCKED</text>
+
+    <!-- ground -->
+    <path id="ground" d="" stroke="#4ee08a" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <g id="hatch" stroke="#2c7a52" stroke-width="3" stroke-linecap="round"></g>
+  </g>
+
+  <!-- CAR -->
+  <g id="car">
+    <g transform="translate(45,0)">
+      <!-- mentos tubes -->
+      <g stroke="#9c8fd0" stroke-width="2.5" fill="none" stroke-dasharray="6 5" opacity=".8">
+        <path d="M258 330 L117 414"/>
+        <path d="M262 330 L292 414"/>
+      </g>
+      <!-- bottle clusters -->
+      <g id="bottlesL"></g>
+      <g id="bottlesR"></g>
+      <!-- body -->
+      <g id="bodyart">
+        <path d="M55 421 L55 385 C55 377 60 374 70 373 L121 371 L160 340 C166 333 175 330 186 330 L259 330
+                 C270 330 278 334 283 341 L311 372 L341 376 C349 378 351 382 351 389 L351 421 Z"
+              fill="#20a0d8" stroke="#0a0810" stroke-width="5" stroke-linejoin="round"/>
+        <path d="M168 369 L191 342 L222 342 L222 369 Z" fill="#9ff2ff" stroke="#0a0810" stroke-width="4" stroke-linejoin="round"/>
+        <path d="M230 342 L257 342 L281 369 L230 369 Z" fill="#9ff2ff" stroke="#0a0810" stroke-width="4" stroke-linejoin="round"/>
+        <path d="M226 372 L226 420" stroke="#0a0810" stroke-width="4" fill="none"/>
+        <path d="M236 384 h16" stroke="#0a0810" stroke-width="5" stroke-linecap="round"/>
+        <path d="M344 390 q8 2 7 10 q-8 1 -9 -2z" fill="var(--yel)" stroke="#0a0810" stroke-width="3"/>
+        <path d="M58 384 h12 v10 h-12z" fill="#ff2a3c" stroke="#0a0810" stroke-width="3"/>
+        <!-- empty wheel arches -->
+        <path d="M86 421 q29 -42 58 0" fill="none" stroke="#0a0810" stroke-width="5" stroke-linecap="round"/>
+        <path d="M262 421 q30 -42 59 0" fill="none" stroke="#0a0810" stroke-width="5" stroke-linecap="round"/>
+        <!-- hopper -->
+        <path d="M232 294 L295 294 L279 331 L248 331 Z" fill="#ffd23f" stroke="#0a0810" stroke-width="5" stroke-linejoin="round"/>
+        <g id="hopdots" fill="#fff6e5" stroke="#0a0810" stroke-width="2">
+          <circle cx="245" cy="304" r="5"/><circle cx="258" cy="302" r="5"/>
+          <circle cx="271" cy="305" r="5"/><circle cx="284" cy="303" r="5"/>
+          <circle cx="252" cy="314" r="5"/><circle cx="266" cy="315" r="5"/>
+          <circle cx="278" cy="314" r="5"/>
+        </g>
+      </g>
+    </g>
+    <g id="mentosfall" fill="#fff6e5" stroke="#0a0810" stroke-width="2"></g>
+    <g id="foam"></g>
+  </g>
+
+  <!-- LABELS -->
+  <g font-size="14" fill="var(--yel)">
+    <text x="8" y="330">LIKE A NORMAL</text>
+    <text x="8" y="347">HONDA CIVIC</text>
+    <path d="M90 341 q40 10 68 22" stroke="var(--yel)" stroke-width="2.5" fill="none"/>
+    <path d="M158 363 l-12 -1 l6 -7z" fill="var(--yel)"/>
+
+    <text x="8" y="436" fill="var(--red)">A WHOLE BUNCH OF</text>
+    <text x="8" y="453" fill="var(--red)">COCA COLA BOTTLES</text>
+    <path d="M130 458 q22 8 36 2" stroke="var(--red)" stroke-width="2.5" fill="none"/>
+    <path d="M168 458 l-10 -5 l1 9z" fill="var(--red)"/>
+
+    <text x="512" y="252" text-anchor="end" fill="var(--cyan)">MENTOS DROPPED</text>
+    <text x="512" y="269" text-anchor="end" fill="var(--cyan)">IN THE TOP</text>
+    <path d="M440 276 q-50 10 -92 18" stroke="var(--cyan)" stroke-width="2.5" fill="none"/>
+    <path d="M342 296 l10 -7 l1 9z" fill="var(--cyan)"/>
+
+    <text x="512" y="392" text-anchor="end">THE BOTTLES ARE WHERE</text>
+    <text x="512" y="409" text-anchor="end">THE WHEELS WERE</text>
+    <path d="M430 416 q-30 12 -58 16" stroke="var(--yel)" stroke-width="2.5" fill="none"/>
+    <path d="M366 434 l11 -5 l-2 9z" fill="var(--yel)"/>
+
+    <text x="512" y="498" text-anchor="end" fill="var(--pink)">SHOOTS OUT THE BOTTOM</text>
+    <path d="M430 504 q-40 -8 -62 -22" stroke="var(--pink)" stroke-width="2.5" fill="none"/>
+    <path d="M364 478 l12 1 l-6 8z" fill="var(--pink)"/>
+  </g>
+
+  <text id="altText" x="14" y="34" font-size="22" fill="#fff6e5">ALTITUDE 0.0 m</text>
+  <text id="clonk" x="260" y="500" font-size="46" fill="var(--red)" text-anchor="middle" opacity="0">CLONK</text>
+</svg>
+</div>
+
+<div class="verdict" id="verdict"></div>
+
+<div class="controls">
+  <div class="ctl">
+    <div class="lab">MORE BOTTLES — <span id="nOut">400</span></div>
+    <input id="n" type="range" min="4" max="2400" step="4" value="400">
+    <div class="mini" id="pack"></div>
+  </div>
+
+  <div class="ctl">
+    <label class="switch" id="sw">
+      <span class="knob"><i></i></span>
+      <p>PRETEND THE BOTTLES WEIGH NOTHING<br><span style="color:#9c8fd0">(off = real life. real life is rough.)</span></p>
+    </label>
+  </div>
+
+  <button id="fire">DROP THE MENTOS</button>
+</div>
+
+<div class="credit">you said "dunno, whatever you think" for the dropper — so it's a yellow hopper on the roof with a trapdoor wired to the go pedal. press go, mentos fall, you leave.</div>
+
+<div class="note" id="note"></div>
+
+<script>
+(function(){
+"use strict";
+var G=9.81, CARM=1350, DRIVER=80, BF=2.10, EJECT=1.20, THRUST=13.5, BURN=0.8, PPM=42;
+var PRICE_COKE=1.85, PRICE_MENT=0.63, MENT_PER=7;
+
+var svg=document.getElementById('scene'),
+    world=document.getElementById('world'),
+    car=document.getElementById('car'),
+    foamG=document.getElementById('foam'),
+    mfG=document.getElementById('mentosfall'),
+    bL=document.getElementById('bottlesL'), bR=document.getElementById('bottlesR'),
+    altText=document.getElementById('altText'),
+    clonk=document.getElementById('clonk'),
+    verdict=document.getElementById('verdict'),
+    stage=document.getElementById('stage'),
+    slider=document.getElementById('n'), nOut=document.getElementById('nOut'),
+    pack=document.getElementById('pack'), sw=document.getElementById('sw'),
+    fire=document.getElementById('fire');
+
+var NS="http://www.w3.org/2000/svg";
+function el(t,a){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);return e;}
+function money(x){return '£'+Math.round(x).toLocaleString('en-GB');}
+
+/* wobbly ground */
+(function(){
+  var d="M-40 470", x=-40, g=document.getElementById('ground'), h=document.getElementById('hatch');
+  while(x<560){ x+=24; d+=" L"+x+" "+(470+(Math.random()*5-2.5)).toFixed(1); }
+  g.setAttribute('d',d);
+  for(var i=-30;i<560;i+=26){
+    h.appendChild(el('path',{d:"M"+i+" 474 l-10 16"}));
+  }
+})();
+
+/* bottles */
+function bottlePath(x,y,s){
+  return "M"+(x-7*s)+" "+y+" L"+(x-7*s)+" "+(y-34*s)+
+   " C"+(x-7*s)+" "+(y-40*s)+" "+(x-3*s)+" "+(y-40*s)+" "+(x-2.6*s)+" "+(y-45*s)+
+   " L"+(x-2.6*s)+" "+(y-49*s)+" L"+(x+2.6*s)+" "+(y-49*s)+" L"+(x+2.6*s)+" "+(y-45*s)+
+   " C"+(x+3*s)+" "+(y-40*s)+" "+(x+7*s)+" "+(y-40*s)+" "+(x+7*s)+" "+(y-34*s)+" Z";
+}
+function drawCluster(g,cx,n){
+  while(g.firstChild)g.removeChild(g.firstChild);
+  var k=Math.max(1,Math.min(9,Math.round(Math.sqrt(n/4))));
+  var sp=13, w=(k-1)*sp, x0=cx-w/2;
+  for(var i=0;i<k;i++){
+    var x=x0+i*sp, jy=470+(i%2?1.5:0);
+    g.appendChild(el('path',{d:bottlePath(x,jy,1),fill:"#4a1414",stroke:"#0a0810","stroke-width":"3.5","stroke-linejoin":"round"}));
+    g.appendChild(el('path',{d:"M"+(x-7)+" "+(jy-24)+" h14",stroke:"#ff2a3c","stroke-width":"8"}));
+  }
+  var t=el('text',{x:cx,y:496,"font-size":"12.5",fill:"#ff8a95","text-anchor":"middle"});
+  t.textContent="× "+Math.round(n/4).toLocaleString('en-GB')+" HERE";
+  g.appendChild(t);
+}
+
+/* foam pool */
+var P=[],NP=110;
+for(var i=0;i<NP;i++){
+  var c=el('circle',{cx:0,cy:0,r:0,fill:"#fff6e5"});
+  foamG.appendChild(c); P.push({e:c,life:0});
+}
+function spawn(x){
+  for(var i=0;i<NP;i++){ if(P[i].life<=0){
+    var p=P[i];
+    p.x=x+(Math.random()*26-13); p.y=472+Math.random()*4;
+    p.vx=(Math.random()*120-60); p.vy=240+Math.random()*320;
+    p.r=3+Math.random()*7; p.life=0.35+Math.random()*0.5; p.max=p.life;
+    p.e.setAttribute('fill',Math.random()<0.35?"#e7d6ad":"#fff6e5");
+    return;
+  }}
+}
+/* mentos falling dots */
+var MF=[];
+for(var i=0;i<10;i++){var c2=el('circle',{cx:0,cy:0,r:4.5,opacity:0});mfG.appendChild(c2);MF.push(c2);}
+
+/* state */
+var st='idle', t=0, h=0, v=0, apex=0, air=0, n=400, cheat=false, impact=0, squash=1, done=0;
+
+function need(){ return Math.ceil((CARM+DRIVER)*G/THRUST); }
+function cost(k){ return k*(PRICE_COKE+PRICE_MENT); }
+
+function idleText(){
+  var c=cost(n);
+  if(!cheat){
+    verdict.innerHTML='one bottle shoves with <b>13.5 newtons</b>. one full bottle <b>weighs 20.6 newtons</b>. every bottle you bolt on makes the car heavier than the push it gives. you are <b>infinity bottles short</b>.';
+  } else if(n<need()){
+    verdict.innerHTML='you are <b>'+(need()-n).toLocaleString('en-GB')+' bottles short</b> of leaving the driveway. ('+money(c)+' of shopping so far.)';
+  } else {
+    verdict.innerHTML='<b>'+n.toLocaleString('en-GB')+' bottles</b> — that clears a '+CARM.toLocaleString('en-GB')+' kg civic plus you. '+money(c)+' per launch. press the pedal.';
+  }
+}
+function updN(){
+  n=+slider.value; nOut.textContent=n.toLocaleString('en-GB');
+  var per=n/4, dia=Math.sqrt(per)*0.105;
+  pack.textContent=per.toLocaleString('en-GB')+' bottles per wheel well — each corner is now a '+dia.toFixed(1)+' m wide bouquet of coke. '+(n*MENT_PER).toLocaleString('en-GB')+' mentos, '+money(cost(n))+' a go.';
+  drawCluster(bL,115,n); drawCluster(bR,290,n);
+  if(st==='idle') idleText();
+}
+slider.addEventListener('input',updN);
+sw.addEventListener('click',function(){ cheat=!cheat; sw.classList.toggle('on',cheat); if(st==='idle')idleText(); });
+
+/* fizz noise */
+function fizz(sec){
+  try{
+    var AC=window.AudioContext||window.webkitAudioContext; if(!AC)return;
+    var ac=fizz.ac||(fizz.ac=new AC());
+    var len=Math.floor(ac.sampleRate*sec), b=ac.createBuffer(1,len,ac.sampleRate), d=b.getChannelData(0);
+    for(var i=0;i<len;i++){ d[i]=(Math.random()*2-1)*Math.pow(1-i/len,1.4)*0.5; }
+    var s=ac.createBufferSource(); s.buffer=b;
+    var f=ac.createBiquadFilter(); f.type='bandpass'; f.frequency.value=2600; f.Q.value=0.6;
+    var g2=ac.createGain(); g2.gain.value=0.25;
+    s.connect(f); f.connect(g2); g2.connect(ac.destination); s.start();
+  }catch(e){}
+}
+
+fire.addEventListener('click',function(){
+  if(st!=='idle')return;
+  st='drop'; t=0; h=0; v=0; apex=0; air=0; fire.disabled=true;
+  clonk.setAttribute('opacity',0);
+  verdict.innerHTML='mentos away…';
+  for(var i=0;i<MF.length;i++)MF[i].setAttribute('opacity',1);
+});
+
+function finish(){
+  st='done'; done=0; stage.classList.remove('shake');
+  var c=cost(n);
+  if(apex<0.05){
+    verdict.innerHTML='it did not move. <b>0.0 m.</b> '+money(c)+' of fizzy drink sprayed into the tarmac and the car just sat there, soaked, like a dog in a bath.';
+  } else {
+    var ps=c/Math.max(air,0.01);
+    verdict.innerHTML='apex <b>'+apex.toFixed(1)+' m</b>, airborne <b>'+air.toFixed(2)+' s</b>. that is '+money(c)+' per launch — <b>'+money(ps)+' per second of flying car</b>. and now all '+n.toLocaleString('en-GB')+' bottles are empty.';
+  }
+  setTimeout(function(){ if(st==='done'){ st='idle'; fire.disabled=false; } },1400);
+}
+
+var last=0;
+function frame(ts){
+  var dt=Math.min(0.05,(ts-last)/1000||0); last=ts;
+
+  if(st==='drop'){
+    t+=dt; var k=Math.min(1,t/0.35);
+    for(var i=0;i<MF.length;i++){
+      var side=i%2, kk=Math.min(1,Math.max(0,k*1.25-i*0.045));
+      var sx=45+(side?262:258), sy=332, ex=45+(side?292:117), ey=414;
+      MF[i].setAttribute('cx',sx+(ex-sx)*kk); MF[i].setAttribute('cy',sy+(ey-sy)*kk);
+      MF[i].setAttribute('opacity',kk>=1?0:1);
+    }
+    if(t>=0.35){ st='burn'; t=0; fizz(BURN+0.25); stage.classList.add('shake');
+      for(var j=0;j<MF.length;j++)MF[j].setAttribute('opacity',0); }
+  }
+  else if(st==='burn'||st==='fly'){
+    var thrust = (st==='burn') ? n*THRUST : 0;
+    var spent = (st==='burn') ? Math.min(t/BURN,1) : 1;
+    var bm = cheat ? 0 : n*(BF-EJECT*spent);
+    var m = CARM+DRIVER+bm;
+    var a = thrust/m - G;
+    if(h<=0 && a<=0){ h=0; v=0; }
+    else{
+      v+=a*dt; h+=v*dt;
+      if(h<=0){ h=0; impact=Math.abs(v); v=0; squash=0.62; clonk.setAttribute('opacity',1);
+        if(st==='fly'){ finish(); } }
+      else { air+=dt; }
+    }
+    if(h>apex)apex=h;
+    if(st==='burn'){
+      var sp=Math.min(14,2+Math.round(n/90));
+      for(var s2=0;s2<sp;s2++){ spawn(45+115); spawn(45+290); }
+      t+=dt;
+      if(t>=BURN){ stage.classList.remove('shake'); if(h<=0){ finish(); } else { st='fly'; } }
+    }
+  }
+  else if(st==='done'){ done+=dt; if(done>0.8) clonk.setAttribute('opacity',Math.max(0,1-(done-0.8)*2)); }
+
+  /* squash recover */
+  squash+=(1-squash)*Math.min(1,dt*9);
+  var sq=squash.toFixed(3);
+  bL.setAttribute('transform','translate(0,470) scale(1,'+sq+') translate(0,-470)');
+  bR.setAttribute('transform','translate(0,470) scale(1,'+sq+') translate(0,-470)');
+
+  /* camera */
+  var camH=Math.max(0,h-2.2);
+  world.setAttribute('transform','translate(0,'+(camH*PPM).toFixed(1)+')');
+  car.setAttribute('transform','translate(0,'+(-(h-camH)*PPM).toFixed(1)+')');
+  altText.textContent='ALTITUDE '+h.toFixed(1)+' m';
+  altText.setAttribute('fill', h>0.05?'#4ee08a':'#fff6e5');
+
+  /* foam */
+  for(var p,i2=0;i2<NP;i2++){
+    p=P[i2];
+    if(p.life>0){
+      p.life-=dt; p.vy+=380*dt; p.x+=p.vx*dt; p.y+=p.vy*dt;
+      if(p.life<=0){ p.e.setAttribute('r',0); p.e.setAttribute('opacity',0); }
+      else{
+        p.e.setAttribute('cx',p.x.toFixed(1)); p.e.setAttribute('cy',p.y.toFixed(1));
+        p.e.setAttribute('r',(p.r*(0.5+p.life/p.max)).toFixed(1));
+        p.e.setAttribute('opacity',(p.life/p.max).toFixed(2));
+      }
+    }
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+document.getElementById('note').innerHTML =
+ 'i guessed these: a civic is 1,350 kg and you are 80 kg; one mentos\u2019d 2-litre throws out about 1.2 kg of foam at roughly 9 m/s for 0.8 seconds, which is 13.5 newtons of shove — that number is eyeballed off bottle-rocket videos, not a lab. coke £1.85, mentos 63p a bottle. everything fires at the exact same instant, which it wouldn\u2019t.';
+
+updN(); idleText();
+})();
+</script>
+</body>
+</html>

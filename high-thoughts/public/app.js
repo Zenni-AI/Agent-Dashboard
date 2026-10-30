@@ -111,6 +111,35 @@ function setBookToken(token) {
   state.token = token;
 }
 
+/**
+ * Ask for the free first creation.
+ *
+ * Only ever asked once per load, and the server is the one that decides —
+ * it keeps a record of who has already had theirs. A "no" here is not an
+ * error to show anybody: it means this phone needs a code, which the paywall
+ * already says better than a toast would.
+ */
+let freeClaimAsked = false;
+
+async function claimFreeCreation() {
+  if (state.token || freeClaimAsked) return state.token;
+  freeClaimAsked = true;
+
+  try {
+    const response = await fetch("/api/claim", { method: "POST" });
+    if (!response.ok) return null;
+
+    const data = await response.json().catch(() => ({}));
+    if (typeof data.token !== "string") return null;
+
+    setBookToken(data.token);
+    state.credits = typeof data.credits === "number" ? data.credits : 1;
+    return data.token;
+  } catch {
+    return null;
+  }
+}
+
 /** Ask the server what is left. The phone is never the authority on this. */
 async function refreshCredits() {
   const token = state.token;
@@ -1322,6 +1351,10 @@ async function beginCreation(thought, { feedback = "", version = 1 } = {}) {
   show("creation");
 
   try {
+    // First creation on this phone: see whether the server will stand it. It
+    // says no if the free one has gone, and the paywall below handles that.
+    if (!state.token) await claimFreeCreation();
+
     const response = await fetch("/api/creation", {
       method: "POST",
       headers: {

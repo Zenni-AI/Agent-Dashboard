@@ -10,12 +10,15 @@
 **Make it safe to put in front of strangers.** Milestone 1 built the product;
 none of it is abuse-resistant. In priority order:
 
-1. **Server-enforced free allowance.** Today the first free creation is granted
-   by the client and can be re-claimed by clearing site data. Needs a durable
-   per-identity record — the smallest honest version is a signed, server-issued
-   anonymous id stored alongside the credit token, with the allowance recorded
-   server-side.
-2. **Persistent throttling.** `ratelimit.ts` is in-memory and per-process.
+1. ~~**Server-enforced free allowance.**~~ **Done, with a caveat.**
+   `POST /api/claim` is server-decided and recorded in the ledger, so clearing
+   site data no longer gets a second one. It is keyed on a salted hash of the
+   caller's address, which a VPN defeats and which makes two people behind one
+   router share a single free creation. Off by default. The honest fix is an
+   account to attach the allowance to — see item 6.
+2. **Persistent throttling.** `ratelimit.ts` is in-memory and per-process. The
+   ledger now has a durable home; the limiter should move into it, keyed on the
+   same claim hash so a restart does not reset anybody's quota.
 3. **Spend monitoring with a ceiling.** Per-request usage is already logged;
    nothing aggregates it or stops.
 4. **Meter `/api/develop`, `/api/brief`, `/api/interview`.** All three spend
@@ -23,7 +26,24 @@ none of it is abuse-resistant. In priority order:
 5. Fix the SVG clipping defect at the prompt level (the detector now reports
    it; the generator should stop causing it).
 
+6. **Accounts.** Everything above is tuning a leak that only an identity
+   closes, and it is also the only way somebody keeps their library after
+   clearing site data or picks it up on a second device.
+
 Only after those: deployment config, a host, and a Stripe payment link.
+
+### What landed toward Milestone 2 already
+
+The ledger is no longer tied to a JSON file. `ledger.ts` is the interface,
+`credits.ts` is the file store, `ledger-supabase.ts` is Postgres, and
+`ledger-factory.ts` picks between them from config — so moving a running app
+onto a durable ledger is two environment variables and a migration, with
+existing tokens working unchanged on either side. `supabase/migrations/` holds
+the schema; `npm run ledger:sql` verifies it against a real PostgreSQL.
+
+Still outstanding before a public host: items 2–5, a decision on which
+Supabase project to use, and a host that can hold a 2–4 minute streaming
+request (which rules out the usual serverless defaults).
 
 ---
 

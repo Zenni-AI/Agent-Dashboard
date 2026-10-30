@@ -34,15 +34,54 @@ process; a restart loses in-flight jobs.
 
 ### Paid work: the credit ledger
 
-`credits.ts` is a file-backed ledger (`.high-thoughts/credits.json`), keyed by a
-bearer token stored as a SHA-256 hash. `POST /api/textbook` spends one credit
-*before* anything reaches the model. Properties that are tested:
+Every paid endpoint spends a credit *before* anything reaches the model. The
+token is a bearer secret, stored only as a SHA-256 hash, so neither store ever
+holds something spendable.
+
+There are two stores behind one interface (`ledger.ts`), picked by config
+(`ledger-factory.ts`), and nothing above that line knows which one it got:
+
+| | `CreditStore` (`credits.ts`) | `SupabaseLedger` (`ledger-supabase.ts`) |
+| --- | --- | --- |
+| Where | `.high-thoughts/credits.json` | Postgres, over PostgREST |
+| Right for | one machine | anything other people can reach |
+| Survives a redeploy | no — container disk | yes |
+| Two server instances | **unsafe**, will double-spend | safe |
+| Dependencies | none | none (one `fetch` per call) |
+
+Properties the file ledger is tested for:
 
 - a leaked ledger yields no usable token
 - concurrent spends are serialised (10 requests against 3 credits → exactly 3)
 - the file is written by rename, so a crash cannot truncate it
 - an unreadable ledger starts **empty** — the safe failure is "nobody gets one"
 - the ledger reloads when another process writes it (how a payment webhook will work)
+
+The Postgres ledger keeps the rules in SQL (`supabase/migrations/`), because a
+mocked test cannot reach the thing that decides whether somebody is charged
+twice. `npm run ledger:sql` stands up a throwaway PostgreSQL, applies the
+migration as Supabase would, and asserts:
+
+- a spend is one conditional `UPDATE`, so two overlapping transactions racing
+  for the last credit produce one success and one refusal — verified by holding
+  the row in an open transaction while the other side tries
+- a claim key gets exactly one free creation, and the loser leaves no orphan
+  account behind
+- `anon` and `authenticated` — the roles a leaked publishable key maps to — are
+  refused all eight ways in, while `service_role` can still do everything
+- the argument names the TypeScript client sends actually resolve
+
+A ledger that cannot be reached **fails closed**: the request is refused with
+503 and nothing is charged. An outage must never be the cheapest route to free
+work.
+
+### The free first creation
+
+`POST /api/claim` is the only way to get one, and the ledger — not the phone —
+decides. It is **off by default** (`HIGH_THOUGHTS_FREE_CLAIMS`), and refuses to
+switch on without a salt. What the claim key is worth is covered honestly in
+`SECURITY_RISKS.md`; short version: it stops clearing site data, it does not
+stop a VPN, and two people behind one router share one.
 
 ## Modules
 
@@ -55,10 +94,14 @@ bearer token stored as a SHA-256 hash. `POST /api/textbook` spends one credit
 | `brief.ts` | reads a thought's log into structured decisions | yes |
 | `textbook.ts` | the discontinued book | yes — **should be retired** |
 | `jobs.ts` | background work with replayable streams | yes |
-| `credits.ts` | the paywall ledger | yes |
+| `ledger.ts` | what the paywall talks to: the interface both stores implement | yes |
+| `credits.ts` | the ledger as a JSON file — one machine | yes |
+| `ledger-supabase.ts` | the ledger in Postgres — anything public | yes (when configured) |
+| `ledger-factory.ts` | picks the store the config asks for | yes |
+| `token.ts` | issuing, hashing and shape-checking credit tokens | yes |
 | `validate.ts` | every untrusted input | yes |
 | `ratelimit.ts` | per-IP throttle | yes |
-| `cli.ts` | issue/top up credits | yes (shell) |
+| `cli.ts` | issue/top up credits, against whichever ledger is configured | yes (shell) |
 | **`interview.ts`** | **asks how the thing works** | **NO — orphan** |
 | **`prototype.ts`** | **generates the artifact** | **NO — orphan** |
 

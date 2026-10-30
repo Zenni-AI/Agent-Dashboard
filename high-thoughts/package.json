@@ -16,7 +16,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "credits": "tsx src/cli.ts",
-    "security": "node scripts/security-check.mjs && node scripts/egress-check.mjs"
+    "security": "node scripts/security-check.mjs && node scripts/egress-check.mjs",
+    "ledger:sql": "node scripts/ledger-sql-check.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.120.0",

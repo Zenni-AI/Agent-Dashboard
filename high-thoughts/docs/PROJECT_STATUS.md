@@ -64,15 +64,16 @@ for, and is what a user of the app today receives.
 | --- | --- |
 | One-tap capture | working (text + dictation) |
 | Original idea preserved | working — stored verbatim, never overwritten |
-| Mechanism interview | model layer proven, **not in the app** |
-| Visual/interactive artifact | model layer proven, **not in the app, cannot be displayed** |
-| Idea Library with history | **not started** — current Library lists books only |
-| Revisit and evolve | partially — re-developing a thought works; no versioning |
-| Version history | **not started** |
-| Private storage | working — `localStorage` only, server stores nothing |
-| Export | **not started** |
+| Mechanism interview | working — wired, capped at four questions |
+| Visual/interactive artifact | working — generated and displayed in a hardened sandbox |
+| Idea Library with history | working — diagram, original text, and the timeline that led to it |
+| Revisit and evolve | working — a creation can be re-made with feedback, and keeps a version number |
+| Version history | partial — versions are numbered and stored; nothing in the UI compares them |
+| Private storage | working — `localStorage` only, server stores no ideas |
+| Export | partial — `store.exportAll()` exists; no UI calls it |
 | Sharing | **not started**, and architecturally blocked by local-only storage |
-| Free first creation | **not started** — the paywall currently has no free allowance |
+| Free first creation | mechanism built and server-enforced (`POST /api/claim`), **off by default** and keyed only on an address hash — see `SECURITY_RISKS.md` |
+| Durable credit ledger | built — Postgres behind the same interface as the JSON file, SQL verified against a real PostgreSQL; **not yet pointed at a project** |
 | Usage-based monetization | ledger + enforcement working; **no payment provider** |
 
 ## Known costs (measured, not estimated)
@@ -85,6 +86,9 @@ for, and is what a user of the app today receives.
 | **Prototype** | ~1,100 in / **17k–24k out** | **$0.43–$0.61** |
 | Textbook (discontinued) | 102k in / 17.5k out | ~$1.20 |
 
+A free creation therefore costs $0.43–$0.61 of real spend, which is why the
+free allowance is a server decision and defaults to off.
+
 The prototype is **roughly half the cost of the book** and a far better artifact.
 Three generations were measured: 22,000 / 16,893 / 24,381 output tokens.
 
@@ -94,7 +98,10 @@ These block implementation and need a human answer — see `NEXT_MILESTONES.md`.
 
 1. Does a prototype have to leave the device to be shared? (Sharing vs. the
    local-only privacy guarantee are in direct conflict.)
-2. Is the first prototype free? The offer modal and credit ledger assume not.
+2. ~~Is the first prototype free?~~ Decided: one free, server-enforced, and
+   switched off until somebody chooses to spend the money. Still open: whether
+   an address hash is a good enough identity to hand money to, or whether this
+   waits for accounts.
 3. Do the four conversation modes survive alongside the interview, or does the
    interview replace them?
 4. Is the textbook deleted, or kept as a secondary artifact?

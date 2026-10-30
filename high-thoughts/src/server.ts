@@ -6,8 +6,10 @@ import { extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readTheLog } from "./brief.js";
 import { describeFailure, developThought } from "./claude.js";
-import { loadConfig, MissingKeyError, type Config } from "./config.js";
-import { CreditStore } from "./credits.js";
+import { ConfigError, loadConfig, MissingKeyError, type Config } from "./config.js";
+import type { Ledger } from "./ledger.js";
+import { createLedger } from "./ledger-factory.js";
+import { hashClaim } from "./token.js";
 import { nextQuestion } from "./interview.js";
 import { streamPrototype } from "./prototype.js";
 import { JobStore, newJobId } from "./jobs.js";
@@ -48,7 +50,7 @@ function start(config: Config): void {
   });
   const limiter = new RateLimiter(config.rateLimit, config.rateWindowMs);
   const jobs = new JobStore();
-  const credits = new CreditStore(config.creditsFile);
+  const credits = createLedger(config);
 
   const server = createServer((req, res) => {
     handle(req, res, config, client, limiter, jobs, credits).catch((error) => {
@@ -66,6 +68,9 @@ function start(config: Config): void {
   server.listen(config.port, config.host, () => {
     console.log(`HIGH THOUGHTS on http://${config.host}:${config.port}  (${config.model})`);
     console.log("On your phone: open the same port on this machine's LAN address.");
+    // Which ledger is live decides whether a purchase survives a restart, so
+    // it is worth one line at startup rather than a surprise later.
+    void credits.describe().then((where) => console.log(`Credits: ${where}`));
   });
 }
 
@@ -76,7 +81,7 @@ async function handle(
   client: Anthropic,
   limiter: RateLimiter,
   jobs: JobStore,
-  credits: CreditStore,
+  credits: Ledger,
 ): Promise<void> {
   const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
 
@@ -87,13 +92,23 @@ async function handle(
     return sendJson(res, 200, { ok: true, model: config.model });
   }
 
-  // How many books this token can still make. The phone asks before it offers.
+  // How many creations this token can still make. The phone asks before it
+  // offers.
   if (url.pathname === "/api/credits") {
     const token = bearerToken(req, url);
-    return sendJson(res, 200, {
-      credits: credits.balance(token),
-      known: credits.known(token),
-    });
+    try {
+      const [balance, known] = await Promise.all([credits.balance(token), credits.known(token)]);
+      return sendJson(res, 200, { credits: balance, known });
+    } catch (error) {
+      console.error("credit lookup failed:", (error as Error).message);
+      return sendJson(res, 503, { error: "Couldn't reach the credit ledger." });
+    }
+  }
+
+  // The free first creation. Server-decided, because a client-side flag is a
+  // suggestion and this one costs real money.
+  if (url.pathname === "/api/claim" && req.method === "POST") {
+    return claimFree(req, res, config, limiter, credits);
   }
 
   // Ask how the thing works. Cheap, unmetered, and capped at four answers.
@@ -262,7 +277,7 @@ async function startCreation(
   client: Anthropic,
   limiter: RateLimiter,
   jobs: JobStore,
-  credits: CreditStore,
+  credits: Ledger,
 ): Promise<void> {
   const limit = limiter.check(clientKey(req));
   if (!limit.allowed) {
@@ -286,7 +301,15 @@ async function startCreation(
   // model. The free first one is granted by the client today, which is a
   // convenience and NOT an entitlement — see docs/SECURITY_RISKS.md.
   const token = bearerToken(req, new URL(req.url ?? "/", "http://localhost"));
-  const paid = await credits.redeem(token);
+  let paid;
+  try {
+    paid = await credits.redeem(token);
+  } catch (error) {
+    // Fail closed. An unreachable ledger must never read as "paid", or an
+    // outage becomes the cheapest way to get free work.
+    console.error("credit redemption failed:", (error as Error).message);
+    return sendJson(res, 503, { error: "Couldn't reach the credit ledger. Nothing was charged." });
+  }
   if (!paid.ok) {
     return sendJson(res, 402, {
       error:
@@ -375,7 +398,7 @@ async function startTextbook(
   client: Anthropic,
   limiter: RateLimiter,
   jobs: JobStore,
-  credits: CreditStore,
+  credits: Ledger,
 ): Promise<void> {
   const limit = limiter.check(clientKey(req));
   if (!limit.allowed) {
@@ -396,7 +419,13 @@ async function startTextbook(
   // unpaid request must never be able to start one — this check is the only
   // thing standing between the endpoint and an unbounded bill.
   const token = bearerToken(req, new URL(req.url ?? "/", "http://localhost"));
-  const paid = await credits.redeem(token);
+  let paid;
+  try {
+    paid = await credits.redeem(token);
+  } catch (error) {
+    console.error("credit redemption failed:", (error as Error).message);
+    return sendJson(res, 503, { error: "Couldn't reach the credit ledger. Nothing was charged." });
+  }
 
   if (!paid.ok) {
     return sendJson(res, 402, {
@@ -524,6 +553,60 @@ async function readJson(req: IncomingMessage, maxBytes: number): Promise<unknown
  * client — acceptable, because this limiter exists to stop accidental
  * hammering, not a determined attacker.
  */
+/**
+ * Hand out the free first creation.
+ *
+ * What makes it once-only is the ledger, not the phone: the claim key goes in
+ * a table with a primary key on it, so a second claim for the same key comes
+ * back empty-handed even if two requests arrive together.
+ *
+ * Be clear about what the claim key is worth. It is a salted hash of the
+ * caller's address, which stops the obvious loop — clear site data, ask again
+ * — and nothing more. A different network gets a different free creation, and
+ * two people behind one router share a single one. That is a known cost of
+ * having no accounts yet; docs/SECURITY_RISKS.md carries it.
+ */
+async function claimFree(
+  req: IncomingMessage,
+  res: ServerResponse,
+  config: Config,
+  limiter: RateLimiter,
+  credits: Ledger,
+): Promise<void> {
+  if (!config.freeClaims || !config.claimSalt) {
+    return sendJson(res, 403, {
+      error: "This one needs a creation credit.",
+      reason: "disabled",
+    });
+  }
+
+  const limit = limiter.check(clientKey(req));
+  if (!limit.allowed) {
+    res.setHeader("Retry-After", String(limit.retryAfter));
+    return sendJson(res, 429, { error: `Slow down — ${limit.retryAfter}s.` });
+  }
+
+  let result;
+  try {
+    result = await credits.claimFree(hashClaim(config.claimSalt, clientKey(req)));
+  } catch (error) {
+    console.error("free claim failed:", (error as Error).message);
+    return sendJson(res, 503, { error: "Couldn't reach the credit ledger." });
+  }
+
+  if (!result.ok) {
+    return sendJson(res, 403, {
+      error:
+        result.reason === "already"
+          ? "You've had your free one. The next one needs a credit."
+          : "This one needs a creation credit.",
+      reason: result.reason,
+    });
+  }
+
+  return sendJson(res, 200, { token: result.token, credits: result.credits });
+}
+
 function clientKey(req: IncomingMessage): string {
   const forwarded = req.headers["x-forwarded-for"];
   const first = Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(",")[0];
@@ -550,7 +633,7 @@ function sendText(res: ServerResponse, status: number, body: string): void {
 try {
   start(loadConfig());
 } catch (error) {
-  if (error instanceof MissingKeyError) {
+  if (error instanceof MissingKeyError || error instanceof ConfigError) {
     console.error(error.message);
     process.exit(1);
   }

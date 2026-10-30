@@ -57,7 +57,7 @@ describe("redeem", () => {
 
     const results = await Promise.all(Array.from({ length: 10 }, () => store.redeem(token)));
     expect(results.filter((r) => r.ok)).toHaveLength(3);
-    expect(store.balance(token)).toBe(0);
+    expect(await store.balance(token)).toBe(0);
   });
 
   it("keeps one token's balance away from another's", async () => {
@@ -65,7 +65,7 @@ describe("redeem", () => {
     const yours = issueToken();
     await store.grant(mine, 1);
     expect(await store.redeem(yours)).toEqual({ ok: false, reason: "unknown" });
-    expect(store.balance(mine)).toBe(1);
+    expect(await store.balance(mine)).toBe(1);
   });
 });
 
@@ -74,10 +74,10 @@ describe("refund", () => {
     const token = issueToken();
     await store.grant(token, 1);
     await store.redeem(token);
-    expect(store.balance(token)).toBe(0);
+    expect(await store.balance(token)).toBe(0);
 
     await store.refund(token);
-    expect(store.balance(token)).toBe(1);
+    expect(await store.balance(token)).toBe(1);
   });
 
   it("ignores a refund for a token it has never seen", async () => {
@@ -101,15 +101,15 @@ describe("the ledger file", () => {
     await store.grant(token, 4);
     await store.redeem(token);
 
-    expect(new CreditStore(file).balance(token)).toBe(3);
+    expect(await new CreditStore(file).balance(token)).toBe(3);
   });
 
-  it("starts empty rather than permissive when the file is corrupt", () => {
+  it("starts empty rather than permissive when the file is corrupt", async () => {
     const corrupt = join(mkdtempSync(join(tmpdir(), "ht-bad-")), "credits.json");
     require("node:fs").writeFileSync(corrupt, "{ not json");
     const recovered = new CreditStore(corrupt);
     expect(recovered.accountCount).toBe(0);
-    expect(recovered.balance(issueToken())).toBe(0);
+    expect(await recovered.balance(issueToken())).toBe(0);
   });
 });
 
@@ -153,8 +153,8 @@ describe("credits granted by another process", () => {
     const other = new CreditStore(file);
     await other.grant(token, 2);
 
-    expect(running.balance(token)).toBe(2);
-    expect(running.known(token)).toBe(true);
+    expect(await running.balance(token)).toBe(2);
+    expect(await running.known(token)).toBe(true);
     expect(await running.redeem(token)).toEqual({ ok: true, remaining: 1 });
   });
 
@@ -162,7 +162,67 @@ describe("credits granted by another process", () => {
     const token = issueToken();
     await store.grant(token, 3);
     await store.redeem(token);
-    expect(store.balance(token)).toBe(2);
-    expect(new CreditStore(file).balance(token)).toBe(2);
+    expect(await store.balance(token)).toBe(2);
+    expect(await new CreditStore(file).balance(token)).toBe(2);
+  });
+});
+
+describe("the free first creation", () => {
+  it("issues a spendable token the first time a claim key asks", async () => {
+    const result = await store.claimFree("claim-abc");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    expect(looksLikeToken(result.token)).toBe(true);
+    expect(await store.balance(result.token)).toBe(1);
+    expect(await store.redeem(result.token)).toEqual({ ok: true, remaining: 0 });
+  });
+
+  it("refuses a second claim from the same key", async () => {
+    await store.claimFree("claim-abc");
+    expect(await store.claimFree("claim-abc")).toEqual({ ok: false, reason: "already" });
+  });
+
+  it("treats a different key as a different person", async () => {
+    const first = await store.claimFree("claim-abc");
+    const second = await store.claimFree("claim-def");
+    expect(first.ok && second.ok).toBe(true);
+    if (!first.ok || !second.ok) return;
+    expect(first.token).not.toBe(second.token);
+  });
+
+  it("gives out exactly one token when two claims race", async () => {
+    // Both callers are told yes only if the ledger is wrong about what it has
+    // already handed out, so this is the test that matters.
+    const [a, b] = await Promise.all([store.claimFree("same"), store.claimFree("same")]);
+    expect([a.ok, b.ok].filter(Boolean)).toHaveLength(1);
+  });
+
+  it("remembers the claim across a restart", async () => {
+    await store.claimFree("claim-abc");
+    expect(await new CreditStore(file).claimFree("claim-abc")).toEqual({
+      ok: false,
+      reason: "already",
+    });
+  });
+
+  it("never writes the free token to disk in the clear", async () => {
+    const result = await store.claimFree("claim-abc");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const raw = readFileSync(file, "utf8");
+    expect(raw).not.toContain(result.token);
+    expect(raw).toContain(hashToken(result.token));
+  });
+
+  it("refuses an empty claim key rather than minting a token for nobody", async () => {
+    expect(await store.claimFree("")).toEqual({ ok: false, reason: "unavailable" });
+  });
+
+  it("honours a larger free grant when one is configured", async () => {
+    const generous = new CreditStore(file, { freeCredits: 3 });
+    const result = await generous.claimFree("claim-abc");
+    expect(result.ok && result.credits).toBe(3);
   });
 });

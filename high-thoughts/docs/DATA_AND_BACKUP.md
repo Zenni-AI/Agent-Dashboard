@@ -14,8 +14,22 @@ Everything is in **this browser, on this device**, in `localStorage`:
 | `high-thoughts/offer/v1` | when you were last offered an upgrade |
 
 **The server stores none of it.** It sees an idea for as long as it takes to
-answer, and writes nothing down. The only thing it keeps is the credit ledger,
-which holds a hash of a token and a number — never an idea.
+answer, and writes nothing down. The only thing it keeps is the credit ledger.
+
+### What the ledger holds, and nothing more
+
+Whether it is the JSON file or Postgres, the ledger holds:
+
+| Column | What it is |
+| --- | --- |
+| token hash | SHA-256 of the credit token. The token itself is never stored, so a leaked ledger is not a wallet. |
+| credits, spent | two integers |
+| note | free text we set ourselves, e.g. `stripe` or `free first creation` |
+| claim hash | a **salted** SHA-256 of the caller's address, recorded only when the free allowance is switched on |
+
+No ideas, no creations, no answers, no addresses in the clear. The claim hash
+exists to answer one question — "has this one already had its free creation?" —
+and is useless for anything else without the salt.
 
 ## This is not a backup
 

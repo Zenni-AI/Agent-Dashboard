@@ -118,19 +118,44 @@ following exist. None of them are built:
 
 | Required before launch | State |
 | --- | --- |
-| Server-enforced generation authorization | **Missing.** The free first creation is granted by the *client*; clearing `localStorage` grants another. The credit check itself is server-enforced and sound — the *free allowance* is not. |
+| Server-enforced generation authorization | **Partial.** The credit check is server-enforced and sound. The free first creation is now also server-decided (`POST /api/claim`, recorded against a salted hash of the caller's address), and is **off by default**. What it is worth is bounded by how hard that claim key is to change — see "What the free claim is actually worth" below. |
 | Per-user usage limits | **Missing.** There are no users. |
-| Throttling backed by persistent storage | **Missing.** `ratelimit.ts` is per-process and in-memory; a restart clears it and a second instance does not share it. |
+| Throttling backed by persistent storage | **Missing.** `ratelimit.ts` is per-process and in-memory; a restart clears it and a second instance does not share it. The ledger has moved to Postgres; the limiter has not. |
 | Maximum input sizes | **Present.** Every field capped in `validate.ts`. |
 | Maximum output sizes | **Partial.** `max_tokens` caps each call; there is no cap on calls per person. |
 | AI spending limits and monitoring | **Missing.** Usage is logged per request (`creation done: N in, N out`); nothing aggregates or stops at a threshold. |
 | API credentials server-side only | **Present and verified.** The key never reaches the client; upstream errors are scrubbed of anything key-shaped. |
 | Replay/abuse protection on generation | **Missing.** A captured request can be replayed; it will spend a credit each time, but nothing rate-limits per token. |
 
-**The specific hole to understand:** a free first creation that the client
-grants is not an entitlement. It costs ~$0.50 of API spend and can be claimed
-repeatedly by clearing site data. It is fine for a private build and for
-showing people. It is not fine on the open internet.
+## What the free claim is actually worth
+
+A creation costs roughly $0.50–$0.70 of API spend, so "one free" is a real
+bill and worth being precise about.
+
+What changed: the decision moved off the phone. `POST /api/claim` asks the
+ledger, the ledger writes a row keyed on the claim hash, and a second claim for
+the same key gets nothing. That row is in Postgres when the Supabase ledger is
+in use, so it survives a redeploy, and the primary key on it means two
+simultaneous claims cannot both win. `scripts/ledger-sql-check.mjs` proves
+both against a real PostgreSQL.
+
+What has **not** changed, and must not be claimed otherwise: the claim key is a
+salted hash of the caller's IP address, and that is all the identity there is
+without accounts. So:
+
+- **A new network is a new free creation.** A VPN, mobile data, a coffee shop —
+  each one is another $0.50. This stops the easy loop (clear site data, ask
+  again); it does not stop anyone who wants to.
+- **Two people behind one router share one free creation.** The second person
+  is told they have had theirs when they have not. That is the cost of having
+  no accounts, and it is a bad first impression.
+- **It is off by default.** `HIGH_THOUGHTS_FREE_CLAIMS=0` unless somebody
+  decides to spend the money, and it refuses to switch on without
+  `HIGH_THOUGHTS_CLAIM_SALT` — an unsalted address hash is reversible by
+  anyone holding a list of addresses.
+
+The honest fix is an account the free creation can be attached to. Until that
+exists, this is a tuned leak, not a closed one.
 
 ## R3 — No authentication anywhere (HIGH for hosting, by design today)
 
@@ -142,8 +167,12 @@ no signup means nothing to breach. But it means:
 
 ## R4 — Credit token handling (MEDIUM)
 
-Mitigated well: tokens are stored server-side as SHA-256 hashes, and a test
-proves a leaked ledger yields nothing usable. Remaining issues:
+Mitigated well: tokens are stored as SHA-256 hashes in both ledgers — the
+database never receives a spendable secret — and tests prove a leaked store
+yields nothing usable. On the Postgres ledger the tables sit in a schema
+PostgREST does not expose, and `anon`/`authenticated` (the roles a leaked
+publishable key maps to) are refused every way in; the SQL check asserts all
+sixteen. Remaining issues:
 - the token is accepted via **query string** on `GET /api/credits` and the job
   stream, so it will appear in server logs and proxy logs
 - no expiry, no revocation, no rotation
